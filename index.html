@@ -819,6 +819,109 @@
                 }
             }, 1000);
         }
+        <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    // 🔑 PEGA AQUÍ TUS CREDENCIALES REALES DE SUPABASE
+    const SUPABASE_URL = "https://xzhznwpgbovjlnpguopb.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6aHpud3BnYm92amxucGd1b3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NTM3NTYsImV4cCI6MjEwODQyOTc1Nn0.zgJ336e1MflSXsjC9yxhUPhwbVMeCjgJi2pYBwGe3Nw";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabaseClient = supabase;
+    const roomId = "ROOM-1001";
+    window.roomId = roomId;
+
+    // 1. REGISTRAR JUGADOR AL UNIRSE DESDE EL MÓVIL
+    window.registerContesterInRoom = async function(studentName) {
+        if (!studentName) return;
+        try {
+            const { error } = await supabase
+                .from('players')
+                .upsert([
+                    { room_id: roomId, name: studentName, status: 'Joined', score: 0 }
+                ], { onConflict: 'room_id,name' });
+
+            if (error) console.error("Error al registrar jugador:", error);
+            else fetchAndRenderPlayers();
+        } catch (e) {
+            console.warn("Excepción al registrar jugador:", e);
+        }
+    };
+
+    // 2. ENVIAR RESPUESTAS Y ACTUALIZAR PUNTAJES
+    window.submitStudentAnswers = async function(studentName, answers, earnedScore = 0) {
+        if (!studentName) return;
+        try {
+            const { error } = await supabase
+                .from('players')
+                .update({ 
+                    answers: answers, 
+                    score: earnedScore, 
+                    status: 'Submitted' 
+                })
+                .eq('room_id', roomId)
+                .eq('name', studentName);
+
+            if (error) console.error("Error al enviar respuestas:", error);
+        } catch (e) {
+            console.warn("Excepción al enviar respuestas:", e);
+        }
+    };
+
+    // 3. CONSULTAR Y MOSTRAR LA CLASIFICACIÓN (1º AL 6º LUGAR)
+    async function fetchAndRenderPlayers() {
+        const { data: players, error } = await supabase
+            .from('players')
+            .select('*')
+            .eq('room_id', roomId)
+            .order('score', { ascending: false }) // Ordena de mayor a menor puntaje
+            .limit(6); // Muestra estrictamente del 1 al 6
+
+        if (error) {
+            console.error("Error al consultar jugadores:", error);
+            return;
+        }
+
+        const listContainer = document.getElementById('connected-players-list');
+        const countBadge = document.getElementById('player-count-badge');
+        
+        if (countBadge) countBadge.textContent = `${players.length} Joined`;
+
+        if (!players || players.length === 0) {
+            listContainer.innerHTML = `<div class="text-zinc-400 italic text-xs py-4 text-center">Waiting for students to join...</div>`;
+            return;
+        }
+
+        // Renderiza el podio/lista en el panel principal del Host
+        listContainer.innerHTML = players.map((p, index) => {
+            let medal = '';
+            if (index === 0) medal = '🥇 ';
+            else if (index === 1) medal = '🥈 ';
+            else if (index === 2) medal = '🥉 ';
+
+            return `
+                <div class="flex items-center justify-between p-2 border border-black dark:border-white mb-1 bg-white dark:bg-zinc-900">
+                    <span class="font-bold text-xs truncate max-w-[120px]">${medal}${index + 1}. ${p.name}</span>
+                    <span class="font-mono text-xs font-black bg-emerald-500 text-white px-2 py-0.5 rounded">${p.score || 0} pts</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 4. SINCRONIZACIÓN EN TIEMPO REAL (Realtime)
+    function initRealtimeSubscription() {
+        supabase
+            .channel('public:players')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
+                fetchAndRenderPlayers();
+            })
+            .subscribe();
+    }
+
+    // Inicializar al cargar
+    fetchAndRenderPlayers();
+    initRealtimeSubscription();
+</script>
     </script>
 </body>
 </html>
