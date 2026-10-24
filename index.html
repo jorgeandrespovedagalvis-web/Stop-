@@ -805,3 +805,51 @@
     </script>
 </body>
 </html>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba de Supabase</title>
+    <!-- Importar la librería oficial de Supabase desde el CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Mis Tareas desde Supabase</h1>
+    <ul id="lista-tareas"></ul>
+
+    <script>
+        // 1. Inicializa Supabase con tus credenciales
+        const SUPABASE_URL = 'https://xzhznwpgbovjlnpguopb.supabase.co/rest/v1/';
+        const SUPABASE_ANON_KEY = 'sb_publishable_nZQdbXJ19Pgb3mTNJY4eCw_XAmCkRl7';
+        
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 2. Función para consultar los datos de la base de datos
+        async function obtenerTareas() {
+            const { data, error } = await _supabase
+                .from('tareas')
+                .select('*');
+
+            if (error) {
+                console.error('Error al obtener datos:', error);
+                return;
+            }
+
+            // 3. Mostrar los datos en la página web
+            const lista = document.getElementById('lista-tareas');
+            lista.innerHTML = '';
+            
+            data.forEach(tarea => {
+                const li = document.createElement('li');
+                li.textContent = tarea.titulo;
+                lista.appendChild(li);
+            });
+        }
+
+        // Ejecutar la función al cargar la página
+        obtenerTareas();
+    </script>
+</body>
+</html>
