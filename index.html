@@ -85,7 +85,7 @@
             <!-- Global Controls -->
             <div class="flex flex-wrap items-center gap-3">
                 
-                <!-- Role Switcher (Visible only if not forced as student) -->
+                <!-- Role Switcher -->
                 <div id="role-switcher-box" class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
                     <button id="btn-role-host" onclick="switchRole('host')" class="px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold">
                         📺 Host / Class Screen
@@ -120,7 +120,7 @@
                 <i data-lucide="smartphone" class="w-6 h-6 text-black dark:text-white"></i>
                 <div>
                     <span class="font-black text-sm uppercase block" id="lbl-student-welcome">Student Player Portal</span>
-                    <span class="text-xs text-zinc-700 dark:text-zinc-300">Room: <strong id="student-room-display" class="font-mono bg-black text-white px-1.5 py-0.5">#STOP-1001</strong></span>
+                    <span class="text-xs text-zinc-700 dark:text-zinc-300">Room: <strong id="student-room-display" class="font-mono bg-black text-white px-1.5 py-0.5">#ROOM-1001</strong></span>
                 </div>
             </div>
             
@@ -239,7 +239,7 @@
                 <div id="qr-section-box" class="w-full p-3 border-2 border-black dark:border-white bg-white dark:bg-zinc-950 shadow-sm flex flex-col items-center">
                     <div class="flex items-center justify-between w-full mb-1">
                         <span class="text-[11px] font-black uppercase tracking-wider text-zinc-500" id="lbl-scan-join">Scan to Join</span>
-                        <span id="room-code-badge" class="font-mono text-xs font-black bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">#STOP-1001</span>
+                        <span id="room-code-badge" class="font-mono text-xs font-black bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">#ROOM-1001</span>
                     </div>
 
                     <div class="p-2 bg-white border border-black my-1 flex justify-center items-center">
@@ -299,10 +299,10 @@
                 <div id="podium-top3-cards" class="w-full grid grid-cols-3 gap-3 my-4 items-end min-h-[160px]">
                 </div>
 
-                <!-- FULL LEADERBOARD TABLE -->
+                <!-- FULL LEADERBOARD TABLE (1 TO 6) -->
                 <div class="w-full border-2 border-black dark:border-white mt-4 bg-zinc-50 dark:bg-zinc-950 p-3">
                     <h4 class="font-black text-xs uppercase mb-2 flex items-center gap-2">
-                        <i data-lucide="list-ordered" class="w-4 h-4"></i> Full Leaderboard
+                        <i data-lucide="list-ordered" class="w-4 h-4"></i> Top Classification (1º - 6º)
                     </h4>
                     <div id="full-leaderboard-list" class="divide-y divide-black/10 dark:divide-white/10 text-xs font-mono max-h-40 overflow-y-auto">
                     </div>
@@ -338,8 +338,19 @@
         </footer>
     </div>
 
-    <!-- MAIN SYSTEM ENGINE LOGIC -->
-    <script>
+    <!-- SUPABASE & MAIN ENGINE LOGIC SCRIPT -->
+    <script type="module">
+        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+        // 🔑 REEMPLAZA AQUÍ TUS CREDENCIALES REALES DE SUPABASE
+        const SUPABASE_URL = "https://xzhznwpgbovjlnpguopb.supabase.co/rest/v1/";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6aHpud3BnYm92amxucGd1b3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NTM3NTYsImV4cCI6MjEwODQyOTc1Nn0.zgJ336e1MflSXsjC9yxhUPhwbVMeCjgJi2pYBwGe3Nw";
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabaseClient = supabase;
+        const roomId = "ROOM-1001";
+        window.roomId = roomId;
+
         const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         
         const VOCAB_DICTIONARY = {
@@ -379,16 +390,12 @@
         let timerInterval = null;
         let activeCategoriesCount = 8;
         let currentStudentName = '';
-        let connectedPlayers = {};
-
-        // Local or Supabase State Synchronizer
-        const storageKey = 'STOP_GAME_STATE_V3';
+        let connectedPlayersListCache = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             initAlphabetGrid();
             initAlphabetSelect();
             
-            // Check URL parameters for forced Mobile Student View
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('role') === 'student') {
                 isForcedStudent = true;
@@ -398,7 +405,6 @@
                 renderCategories();
             }
 
-            // Load saved student name if available
             const savedName = localStorage.getItem('STOP_STUDENT_NAME');
             if (savedName) {
                 currentStudentName = savedName;
@@ -407,15 +413,16 @@
             }
 
             updateQRCode();
-            startStatePolling();
+            fetchAndRenderPlayers();
+            initRealtimeSubscription();
             lucide.createIcons();
         });
 
-        function toggleDarkMode() {
+        window.toggleDarkMode = function() {
             document.documentElement.classList.toggle('dark');
         }
 
-        function switchRole(role) {
+        window.switchRole = function(role) {
             currentRole = role;
             const hostBtn = document.getElementById('btn-role-host');
             const studentBtn = document.getElementById('btn-role-student');
@@ -438,7 +445,7 @@
             renderCategories();
         }
 
-        function setLanguage(lang) {
+        window.setLanguage = function(lang) {
             currentLang = lang;
             document.getElementById('btn-lang-en').className = lang === 'en' 
                 ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold"
@@ -448,10 +455,9 @@
                 : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
 
             renderCategories();
-            syncStateToStorage();
         }
 
-        function setStudentName() {
+        window.setStudentName = async function() {
             const input = document.getElementById('student-name-input');
             const val = input.value.trim().toUpperCase();
             if (!val) {
@@ -462,10 +468,10 @@
             localStorage.setItem('STOP_STUDENT_NAME', currentStudentName);
             
             updateStudentUIState();
-            registerPlayerInState(currentStudentName);
+            await registerPlayerInSupabase(currentStudentName);
         }
 
-        function changeStudentName() {
+        window.changeStudentName = function() {
             document.getElementById('student-login-form').classList.remove('hidden');
             document.getElementById('student-logged-info').classList.add('hidden');
         }
@@ -478,21 +484,20 @@
             }
         }
 
-        function registerPlayerInState(name) {
+        async function registerPlayerInSupabase(name) {
             if (!name) return;
-            if (!connectedPlayers[name]) {
-                connectedPlayers[name] = {
-                    name: name,
-                    status: 'Joined',
-                    score: 0,
-                    answers: {},
-                    joinedAt: Date.now()
-                };
-            } else {
-                connectedPlayers[name].status = 'Joined';
+            try {
+                const { error } = await supabase
+                    .from('players')
+                    .upsert([
+                        { room_id: roomId, name: name, status: 'Joined', score: 0 }
+                    ], { onConflict: 'room_id,name' });
+
+                if (error) console.error("Error al registrar jugador:", error);
+                else fetchAndRenderPlayers();
+            } catch (e) {
+                console.warn("Excepción al registrar jugador:", e);
             }
-            syncStateToStorage();
-            renderPlayersList();
         }
 
         function initAlphabetGrid() {
@@ -511,33 +516,31 @@
             select.value = activeLetter;
         }
 
-        function toggleAlphabetModal() {
+        window.toggleAlphabetModal = function() {
             if (currentRole !== 'host') return;
             const modal = document.getElementById('alphabet-modal');
             modal.classList.toggle('hidden');
         }
 
-        function selectLetter(letter) {
+        window.selectLetter = function(letter) {
             activeLetter = letter;
             document.getElementById('active-letter-display').textContent = letter;
             document.getElementById('alphabet-select').value = letter;
             renderCategories();
-            syncStateToStorage();
         }
 
-        function rollRandomLetter() {
+        window.rollRandomLetter = function() {
             const randomIndex = Math.floor(Math.random() * ALPHABET.length);
             selectLetter(ALPHABET[randomIndex]);
         }
 
-        function cycleTimerPreset() {
+        window.cycleTimerPreset = function() {
             timerPresetIndex = (timerPresetIndex + 1) % TIMER_PRESETS.length;
             timerSeconds = TIMER_PRESETS[timerPresetIndex];
             document.getElementById('timer-display').textContent = timerSeconds;
-            syncStateToStorage();
         }
 
-        function toggleTimer() {
+        window.toggleTimer = function() {
             isTimerRunning = !isTimerRunning;
             const iconContainer = document.getElementById('play-icon-container');
             const statusLbl = document.getElementById('lbl-play-status');
@@ -561,366 +564,185 @@
                 statusLbl.textContent = "Play";
             }
             lucide.createIcons();
-            syncStateToStorage();
         }
 
-        function adjustCategoryCount(delta) {
+        window.adjustCategoryCount = function(delta) {
             activeCategoriesCount = Math.max(3, Math.min(12, activeCategoriesCount + delta));
             document.getElementById('category-count-display').textContent = activeCategoriesCount;
             renderCategories();
-            syncStateToStorage();
         }
 
-        function renderCategories() {
+        window.renderCategories = function() {
             const container = document.getElementById('categories-container');
-            const categories = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+            const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
 
-            container.innerHTML = categories.map((cat, idx) => `
-                <div class="p-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
-                    <div class="flex items-center gap-2 w-full sm:w-1/3">
-                        <span class="font-mono text-xs font-black bg-black text-white dark:bg-white dark:text-black w-6 h-6 flex items-center justify-center rounded-full">
-                            ${idx + 1}
-                        </span>
-                        <span class="font-bold text-sm tracking-tight">${cat.name}</span>
+            container.innerHTML = list.map((cat, index) => `
+                <div class="p-3 flex items-center justify-between gap-3 bg-white dark:bg-zinc-950">
+                    <div class="w-1/3 flex items-center gap-2">
+                        <span class="font-mono text-xs font-black bg-zinc-100 dark:bg-zinc-900 px-2 py-1 border border-black/20 dark:border-white/20">${index + 1}</span>
+                        <span class="font-bold text-xs uppercase truncate">${cat.name}</span>
                     </div>
-
-                    <div class="w-full sm:w-2/3 flex items-center gap-2">
-                        <span class="font-mono font-black text-zinc-400 text-sm">${activeLetter}</span>
-                        <input type="text" 
-                               id="input-cat-${cat.id}" 
-                               data-catid="${cat.id}"
-                               placeholder="Palabra con ${activeLetter}..." 
-                               class="category-input w-full bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-semibold focus:outline-none focus:bg-amber-100 dark:focus:bg-zinc-800 transition-colors">
+                    <div class="w-2/3">
+                        <input type="text" id="cat-input-${cat.id}" placeholder="Con ${activeLetter}..." 
+                            class="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-mono uppercase font-bold focus:outline-none focus:bg-white"
+                            ${currentRole === 'host' ? 'disabled' : ''}>
                     </div>
                 </div>
             `).join('');
         }
 
-        function submitStudentAnswersAction() {
+        window.submitStudentAnswersAction = async function() {
             if (!currentStudentName) {
-                alert("Por favor ingresa tu nombre primero en la parte superior.");
+                alert("¡Primero debes ingresar tu nombre en la parte superior!");
+                document.getElementById('student-name-input').focus();
                 return;
             }
 
-            const inputs = document.querySelectorAll('.category-input');
-            const answers = {};
-            let filledCount = 0;
+            const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+            let answers = {};
+            let scoreEarned = 0;
 
-            inputs.forEach(input => {
-                const catId = input.dataset.catid;
-                const val = input.value.trim();
-                answers[catId] = val;
-                if (val) filledCount++;
+            list.forEach(cat => {
+                const val = document.getElementById(`cat-input-${cat.id}`).value.trim().toUpperCase();
+                answers[cat.id] = val;
+                // Validación básica: si empieza con la letra activa, suma 10 puntos provisionales
+                if (val && val.startsWith(activeLetter)) {
+                    scoreEarned += 10;
+                }
             });
 
-            if (connectedPlayers[currentStudentName]) {
-                connectedPlayers[currentStudentName].answers = answers;
-                connectedPlayers[currentStudentName].status = 'Submitted';
-                connectedPlayers[currentStudentName].submittedAt = Date.now();
-            } else {
-                registerPlayerInState(currentStudentName);
-                connectedPlayers[currentStudentName].answers = answers;
-                connectedPlayers[currentStudentName].status = 'Submitted';
-            }
+            try {
+                const { error } = await supabase
+                    .from('players')
+                    .update({ answers: answers, score: scoreEarned, status: 'Submitted' })
+                    .eq('room_id', roomId)
+                    .eq('name', currentStudentName);
 
-            syncStateToStorage();
-            alert(`¡Respuestas enviadas exitosamente! (${filledCount} completadas)`);
+                if (error) alert("Error al enviar respuestas.");
+                else alert(`¡Respuestas enviadas con éxito! Puntuación estimada: ${scoreEarned} pts`);
+            } catch (e) {
+                console.error(e);
+            }
         }
 
-        function triggerStop() {
-            clearInterval(timerInterval);
+        window.triggerStop = function() {
             isTimerRunning = false;
-            syncStateToStorage();
-
-            if (typeof confetti === 'function') {
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
-            }
-
+            clearInterval(timerInterval);
+            alert("🛑 ¡STOP! El tiempo ha terminado. El profesor puede revisar el podio.");
             calculateAndShowPodium();
         }
 
-        function calculateAndShowPodium() {
-            // Evaluate scores for each player
-            Object.keys(connectedPlayers).forEach(pName => {
-                const player = connectedPlayers[pName];
-                let score = 0;
-                if (player.answers) {
-                    Object.values(player.answers).forEach(word => {
-                        if (word && word.trim().toUpperCase().startsWith(activeLetter.toUpperCase())) {
-                            score += 100;
-                        } else if (word && word.trim().length > 0) {
-                            score += 50;
-                        }
-                    });
-                }
-                player.score = score;
-            });
+        async function fetchAndRenderPlayers() {
+            const { data: players, error } = await supabase
+                .from('players')
+                .select('*')
+                .eq('room_id', roomId)
+                .order('score', { ascending: false })
+                .limit(6); // Clasificación del 1º al 6º lugar
 
-            // Sort players
-            const sortedPlayers = Object.values(connectedPlayers).sort((a, b) => b.score - a.score);
-
-            // Render Top 3 Cards
-            const podiumCardsContainer = document.getElementById('podium-top3-cards');
-            podiumCardsContainer.innerHTML = '';
-
-            const colors = [
-                { bg: 'bg-amber-300', height: 'h-36', label: '🥇 1st Place' },
-                { bg: 'bg-zinc-300', height: 'h-28', label: '🥈 2nd Place' },
-                { bg: 'bg-amber-700/40', height: 'h-24', label: '🥉 3rd Place' }
-            ];
-
-            // Reorder for podium display: 2nd, 1st, 3rd
-            const podiumOrder = [
-                sortedPlayers[1] || { name: '-', score: 0 },
-                sortedPlayers[0] || { name: '-', score: 0 },
-                sortedPlayers[2] || { name: '-', score: 0 }
-            ];
-
-            podiumOrder.forEach((player, idx) => {
-                const style = colors[idx === 1 ? 0 : idx === 0 ? 1 : 2];
-                podiumCardsContainer.innerHTML += `
-                    <div class="flex flex-col items-center justify-end ${style.height} ${style.bg} border-2 border-black p-2 text-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                        <span class="text-[10px] font-black uppercase block">${style.label}</span>
-                        <span class="font-black text-sm uppercase truncate w-full block">${player.name}</span>
-                        <span class="font-mono font-black text-xs">${player.score} pts</span>
-                    </div>
-                `;
-            });
-
-            // Render Leaderboard List
-            const leaderboardList = document.getElementById('full-leaderboard-list');
-            if (sortedPlayers.length === 0) {
-                leaderboardList.innerHTML = `<div class="p-2 text-center text-zinc-400 italic">No hay jugadores registrados aún</div>`;
-            } else {
-                leaderboardList.innerHTML = sortedPlayers.map((p, rank) => `
-                    <div class="p-2 flex justify-between items-center ${rank % 2 === 0 ? 'bg-zinc-100 dark:bg-zinc-900' : ''}">
-                        <div class="flex items-center gap-2">
-                            <span class="font-black w-4">${rank + 1}.</span>
-                            <span class="font-bold uppercase">${p.name}</span>
-                            <span class="text-[10px] px-1 bg-black text-white dark:bg-white dark:text-black">${p.status || 'Joined'}</span>
-                        </div>
-                        <span class="font-black text-emerald-600 dark:text-emerald-400">${p.score} PTS</span>
-                    </div>
-                `).join('');
-            }
-
-            document.getElementById('podium-modal').classList.remove('hidden');
-
-            if (typeof confetti === 'function') {
-                confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
-            }
-        }
-
-        function closePodiumModal() {
-            document.getElementById('podium-modal').classList.add('hidden');
-        }
-
-        function renderPlayersList() {
-            const container = document.getElementById('connected-players-list');
-            const players = Object.values(connectedPlayers);
-
-            document.getElementById('player-count-badge').textContent = `${players.length} Joined`;
-
-            if (players.length === 0) {
-                container.innerHTML = `
-                    <div id="no-players-placeholder" class="text-zinc-400 italic text-xs py-4 text-center">
-                        Waiting for students to join...
-                    </div>`;
+            if (error) {
+                console.error("Error al obtener jugadores:", error);
                 return;
             }
 
-            container.innerHTML = players.map(p => `
-                <div class="p-2 border-2 border-black dark:border-white bg-zinc-50 dark:bg-zinc-900 flex justify-between items-center text-xs">
-                    <div class="flex items-center gap-1.5 truncate">
-                        <span class="w-2 h-2 rounded-full ${p.status === 'Submitted' ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
-                        <span class="font-black uppercase truncate">${p.name}</span>
+            connectedPlayersListCache = players || [];
+            const listContainer = document.getElementById('connected-players-list');
+            const countBadge = document.getElementById('player-count-badge');
+            
+            if (countBadge) countBadge.textContent = `${connectedPlayersListCache.length} Joined`;
+
+            if (!connectedPlayersListCache || connectedPlayersListCache.length === 0) {
+                listContainer.innerHTML = `<div id="no-players-placeholder" class="text-zinc-400 italic text-xs py-4 text-center">Waiting for students to join...</div>`;
+                return;
+            }
+
+            listContainer.innerHTML = connectedPlayersListCache.map((p, index) => {
+                let medal = '';
+                if (index === 0) medal = '🥇 ';
+                else if (index === 1) medal = '🥈 ';
+                else if (index === 2) medal = '🥉 ';
+
+                return `
+                    <div class="flex items-center justify-between p-2 border border-black dark:border-white mb-1 bg-white dark:bg-zinc-900">
+                        <span class="font-bold text-xs truncate max-w-[130px]">${medal}${index + 1}. ${p.name}</span>
+                        <span class="font-mono text-xs font-black bg-emerald-500 text-white px-2 py-0.5 rounded">${p.score || 0} pts</span>
                     </div>
-                    <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 border border-black dark:border-white ${p.status === 'Submitted' ? 'bg-emerald-100 text-emerald-900' : 'bg-zinc-200 text-zinc-800'}">
-                        ${p.status || 'Joined'}
-                    </span>
+                `;
+            }).join('');
+        }
+
+        function initRealtimeSubscription() {
+            supabase
+                .channel('public:players')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
+                    fetchAndRenderPlayers();
+                })
+                .subscribe();
+        }
+
+        window.calculateAndShowPodium = function() {
+            const modal = document.getElementById('podium-modal');
+            const top3Container = document.getElementById('podium-top3-cards');
+            const fullListContainer = document.getElementById('full-leaderboard-list');
+
+            const sorted = [...connectedPlayersListCache].sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            // Renderizar Top 3 con diseño de podio
+            top3Container.innerHTML = sorted.slice(0, 3).map((p, i) => {
+                const heights = ['h-32 bg-amber-400', 'h-24 bg-zinc-300', 'h-20 bg-amber-600'];
+                const medals = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
+                return `
+                    <div class="flex flex-col items-center">
+                        <span class="font-black text-xs mb-1 truncate max-w-[90px]">${p.name}</span>
+                        <span class="font-mono font-bold text-[10px] mb-1">${p.score || 0} pts</span>
+                        <div class="${heights[i]} w-full border-2 border-black flex items-center justify-center font-black text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                            ${medals[i]}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Renderizar Clasificación completa (1º a 6º)
+            fullListContainer.innerHTML = sorted.slice(0, 6).map((p, index) => `
+                <div class="flex justify-between items-center py-1.5 px-2 border-b border-black/10">
+                    <span class="font-bold">#${index + 1} - ${p.name}</span>
+                    <span class="font-black">${p.score || 0} pts</span>
                 </div>
             `).join('');
+
+            modal.classList.remove('hidden');
+            if (window.confetti) {
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            }
         }
 
-        function updateQRCode() {
-            const studentUrl = window.location.origin + window.location.pathname + '?role=student';
-            const qrImg = document.getElementById('qr-code-img');
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(studentUrl)}`;
+        window.closePodiumModal = function() {
+            document.getElementById('podium-modal').classList.add('hidden');
         }
 
-        function copyJoinLink() {
-            const studentUrl = window.location.origin + window.location.pathname + '?role=student';
-            const tempInput = document.createElement('input');
-            tempInput.value = studentUrl;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            alert("¡Enlace de estudiantes copiado al portapapeles!");
-        }
-
-        function restartGame() {
-            rollRandomLetter();
-            timerSeconds = TIMER_PRESETS[timerPresetIndex];
-            document.getElementById('timer-display').textContent = timerSeconds;
-            
-            // Reset player statuses
-            Object.keys(connectedPlayers).forEach(p => {
-                connectedPlayers[p].status = 'Joined';
-                connectedPlayers[p].answers = {};
-            });
-
-            document.querySelectorAll('.category-input').forEach(i => i.value = '');
-            syncStateToStorage();
-            renderPlayersList();
-            alert("Ronda reiniciada.");
-        }
-
-        function syncStateToStorage() {
-            const state = {
-                activeLetter,
-                timerSeconds,
-                isTimerRunning,
-                currentLang,
-                activeCategoriesCount,
-                connectedPlayers,
-                updatedAt: Date.now()
-            };
-            localStorage.setItem(storageKey, JSON.stringify(state));
-        }
-
-        function startStatePolling() {
-            setInterval(() => {
-                const raw = localStorage.getItem(storageKey);
-                if (!raw) return;
+        window.restartGame = async function() {
+            if (confirm("¿Reiniciar la ronda y limpiar puntajes?")) {
                 try {
-                    const state = JSON.parse(raw);
-                    if (currentRole === 'student') {
-                        if (state.activeLetter && state.activeLetter !== activeLetter) {
-                            activeLetter = state.activeLetter;
-                            document.getElementById('active-letter-display').textContent = activeLetter;
-                            renderCategories();
-                        }
-                        if (state.timerSeconds !== undefined) {
-                            timerSeconds = state.timerSeconds;
-                            document.getElementById('timer-display').textContent = timerSeconds;
-                        }
-                    }
-                    if (state.connectedPlayers) {
-                        connectedPlayers = state.connectedPlayers;
-                        renderPlayersList();
-                    }
+                    await supabase.from('players').update({ score: 0, answers: {}, status: 'Joined' }).eq('room_id', roomId);
+                    rollRandomLayer();
+                    fetchAndRenderPlayers();
                 } catch (e) {
-                    console.error("Sync error", e);
+                    console.error(e);
                 }
-            }, 1000);
-        }
-        <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-    // 🔑 PEGA AQUÍ TUS CREDENCIALES REALES DE SUPABASE
-    const SUPABASE_URL = "https://xzhznwpgbovjlnpguopb.supabase.co/rest/v1/";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6aHpud3BnYm92amxucGd1b3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NTM3NTYsImV4cCI6MjEwODQyOTc1Nn0.zgJ336e1MflSXsjC9yxhUPhwbVMeCjgJi2pYBwGe3Nw";
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window.supabaseClient = supabase;
-    const roomId = "ROOM-1001";
-    window.roomId = roomId;
-
-    // 1. REGISTRAR JUGADOR AL UNIRSE DESDE EL MÓVIL
-    window.registerContesterInRoom = async function(studentName) {
-        if (!studentName) return;
-        try {
-            const { error } = await supabase
-                .from('players')
-                .upsert([
-                    { room_id: roomId, name: studentName, status: 'Joined', score: 0 }
-                ], { onConflict: 'room_id,name' });
-
-            if (error) console.error("Error al registrar jugador:", error);
-            else fetchAndRenderPlayers();
-        } catch (e) {
-            console.warn("Excepción al registrar jugador:", e);
-        }
-    };
-
-    // 2. ENVIAR RESPUESTAS Y ACTUALIZAR PUNTAJES
-    window.submitStudentAnswers = async function(studentName, answers, earnedScore = 0) {
-        if (!studentName) return;
-        try {
-            const { error } = await supabase
-                .from('players')
-                .update({ 
-                    answers: answers, 
-                    score: earnedScore, 
-                    status: 'Submitted' 
-                })
-                .eq('room_id', roomId)
-                .eq('name', studentName);
-
-            if (error) console.error("Error al enviar respuestas:", error);
-        } catch (e) {
-            console.warn("Excepción al enviar respuestas:", e);
-        }
-    };
-
-    // 3. CONSULTAR Y MOSTRAR LA CLASIFICACIÓN (1º AL 6º LUGAR)
-    async function fetchAndRenderPlayers() {
-        const { data: players, error } = await supabase
-            .from('players')
-            .select('*')
-            .eq('room_id', roomId)
-            .order('score', { ascending: false }) // Ordena de mayor a menor puntaje
-            .limit(6); // Muestra estrictamente del 1 al 6
-
-        if (error) {
-            console.error("Error al consultar jugadores:", error);
-            return;
+            }
         }
 
-        const listContainer = document.getElementById('connected-players-list');
-        const countBadge = document.getElementById('player-count-badge');
-        
-        if (countBadge) countBadge.textContent = `${players.length} Joined`;
-
-        if (!players || players.length === 0) {
-            listContainer.innerHTML = `<div class="text-zinc-400 italic text-xs py-4 text-center">Waiting for students to join...</div>`;
-            return;
+        window.updateQRCode = function() {
+            const joinUrl = window.location.origin + window.location.pathname + '?role=student';
+            const qrImg = document.getElementById('qr-code-img');
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
         }
 
-        // Renderiza el podio/lista en el panel principal del Host
-        listContainer.innerHTML = players.map((p, index) => {
-            let medal = '';
-            if (index === 0) medal = '🥇 ';
-            else if (index === 1) medal = '🥈 ';
-            else if (index === 2) medal = '🥉 ';
-
-            return `
-                <div class="flex items-center justify-between p-2 border border-black dark:border-white mb-1 bg-white dark:bg-zinc-900">
-                    <span class="font-bold text-xs truncate max-w-[120px]">${medal}${index + 1}. ${p.name}</span>
-                    <span class="font-mono text-xs font-black bg-emerald-500 text-white px-2 py-0.5 rounded">${p.score || 0} pts</span>
-                </div>
-            `;
-        }).join('');
-    }
-
-    // 4. SINCRONIZACIÓN EN TIEMPO REAL (Realtime)
-    function initRealtimeSubscription() {
-        supabase
-            .channel('public:players')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
-                fetchAndRenderPlayers();
-            })
-            .subscribe();
-    }
-
-    // Inicializar al cargar
-    fetchAndRenderPlayers();
-    initRealtimeSubscription();
+        window.copyJoinLink = function() {
+            const joinUrl = window.location.origin + window.location.pathname + '?role=student';
+            navigator.clipboard.writeText(joinUrl);
+            alert("¡Enlace de invitación copiado al portapapeles!");
+        }
     </script>
 </body>
 </html>
