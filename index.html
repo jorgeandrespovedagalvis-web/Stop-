@@ -333,7 +333,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v3.5</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v3.6</span>
             </div>
         </footer>
     </div>
@@ -342,7 +342,6 @@
     <script type="module">
         import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-        // 🔑 REEMPLAZA AQUÍ TUS CREDENCIALES REALES DE SUPABASE
         const SUPABASE_URL = "https://xzhznwpgbovjlnpguopb.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6aHpud3BnYm92amxucGd1b3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NTM3NTYsImV4cCI6MjEwODQyOTc1Nn0.zgJ336e1MflSXsjC9yxhUPhwbVMeCjgJi2pYBwGe3Nw";
 
@@ -350,6 +349,13 @@
         window.supabaseClient = supabase;
         const roomId = "ROOM-1001";
         window.roomId = roomId;
+
+        // Identificador de sesión único por pestaña/navegador del estudiante
+        let sessionUuid = localStorage.getItem('STOP_SESSION_UUID');
+        if (!sessionUuid) {
+            sessionUuid = 'sess-' + Math.random().toString(36).substring(2, 11);
+            localStorage.setItem('STOP_SESSION_UUID', sessionUuid);
+        }
 
         const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         
@@ -416,6 +422,23 @@
             fetchAndRenderPlayers();
             initRealtimeSubscription();
             lucide.createIcons();
+
+            // Limpiar de Supabase al cerrar o recargar la ventana del estudiante
+            window.addEventListener('beforeunload', () => {
+                if (currentStudentName) {
+                    // Usar sendBeacon o llamada síncrona/asíncrona para eliminar
+                    navigator.sendBeacon ? null : removePlayerFromSupabase();
+                    // Como fallback por fetch síncrono rápido:
+                    fetch(`${SUPABASE_URL}/rest/v1/players?room_id=eq.${roomId}&session_id=eq.${sessionUuid}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        },
+                        keepalive: true
+                    });
+                }
+            });
         });
 
         window.toggleDarkMode = function() {
@@ -471,7 +494,9 @@
             await registerPlayerInSupabase(currentStudentName);
         }
 
-        window.changeStudentName = function() {
+        window.changeStudentName = async function() {
+            // Borrar el anterior de supabase antes de cambiar
+            await removePlayerFromSupabase();
             document.getElementById('student-login-form').classList.remove('hidden');
             document.getElementById('student-logged-info').classList.add('hidden');
         }
@@ -490,13 +515,26 @@
                 const { error } = await supabase
                     .from('players')
                     .upsert([
-                        { room_id: roomId, name: name, status: 'Joined', score: 0 }
-                    ], { onConflict: 'room_id,name' });
+                        { room_id: roomId, session_id: sessionUuid, name: name, status: 'Joined', score: 0 }
+                    ], { onConflict: 'room_id,session_id' });
 
                 if (error) console.error("Error al registrar jugador:", error);
                 else fetchAndRenderPlayers();
             } catch (e) {
                 console.warn("Excepción al registrar jugador:", e);
+            }
+        }
+
+        async function removePlayerFromSupabase() {
+            try {
+                await supabase
+                    .from('players')
+                    .delete()
+                    .eq('room_id', roomId)
+                    .eq('session_id', sessionUuid);
+                fetchAndRenderPlayers();
+            } catch (e) {
+                console.warn("Error al eliminar jugador:", e);
             }
         }
 
@@ -605,7 +643,6 @@
             list.forEach(cat => {
                 const val = document.getElementById(`cat-input-${cat.id}`).value.trim().toUpperCase();
                 answers[cat.id] = val;
-                // Validación básica: si empieza con la letra activa, suma 10 puntos provisionales
                 if (val && val.startsWith(activeLetter)) {
                     scoreEarned += 10;
                 }
@@ -616,10 +653,10 @@
                     .from('players')
                     .update({ answers: answers, score: scoreEarned, status: 'Submitted' })
                     .eq('room_id', roomId)
-                    .eq('name', currentStudentName);
+                    .eq('session_id', sessionUuid);
 
                 if (error) alert("Error al enviar respuestas.");
-                else alert(`¡Respuestas enviadas con éxito! Puntuación estimada: ${scoreEarned} pts`);
+                else alert(`¡Respuestas enviadas con éxito! Puntuación: ${scoreEarned} pts`);
             } catch (e) {
                 console.error(e);
             }
@@ -628,7 +665,7 @@
         window.triggerStop = function() {
             isTimerRunning = false;
             clearInterval(timerInterval);
-            alert("🛑 ¡STOP! El tiempo ha terminado. El profesor puede revisar el podio.");
+            alert("🛑 ¡STOP! El tiempo ha terminado.");
             calculateAndShowPodium();
         }
 
@@ -638,7 +675,7 @@
                 .select('*')
                 .eq('room_id', roomId)
                 .order('score', { ascending: false })
-                .limit(6); // Clasificación del 1º al 6º lugar
+                .limit(6);
 
             if (error) {
                 console.error("Error al obtener jugadores:", error);
@@ -687,7 +724,6 @@
 
             const sorted = [...connectedPlayersListCache].sort((a, b) => (b.score || 0) - (a.score || 0));
 
-            // Renderizar Top 3 con diseño de podio
             top3Container.innerHTML = sorted.slice(0, 3).map((p, i) => {
                 const heights = ['h-32 bg-amber-400', 'h-24 bg-zinc-300', 'h-20 bg-amber-600'];
                 const medals = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
@@ -702,7 +738,6 @@
                 `;
             }).join('');
 
-            // Renderizar Clasificación completa (1º a 6º)
             fullListContainer.innerHTML = sorted.slice(0, 6).map((p, index) => `
                 <div class="flex justify-between items-center py-1.5 px-2 border-b border-black/10">
                     <span class="font-bold">#${index + 1} - ${p.name}</span>
@@ -724,7 +759,7 @@
             if (confirm("¿Reiniciar la ronda y limpiar puntajes?")) {
                 try {
                     await supabase.from('players').update({ score: 0, answers: {}, status: 'Joined' }).eq('room_id', roomId);
-                    rollRandomLayer();
+                    rollRandomLetter();
                     fetchAndRenderPlayers();
                 } catch (e) {
                     console.error(e);
