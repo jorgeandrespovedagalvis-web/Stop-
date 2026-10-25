@@ -336,7 +336,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v3.7</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v4.0</span>
             </div>
         </footer>
     </div>
@@ -394,13 +394,15 @@
         let currentLang = 'en';
         let activeLetter = 'J';
         let timerSeconds = 120;
+        let gameStatus = 'waiting'; // 'waiting', 'playing', 'stopped'
         let isTimerRunning = false;
         let timerInterval = null;
         let activeCategoriesCount = 8;
         let currentStudentName = '';
         let connectedPlayersListCache = [];
+        let hasSubmitted = false;
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initAlphabetGrid();
             initAlphabetSelect();
             
@@ -421,18 +423,14 @@
             }
 
             updateQRCode();
+            await fetchRoomState();
             fetchAndRenderPlayers();
             initRealtimeSubscription();
             lucide.createIcons();
 
-            // Limpieza automática al cerrar pestaña
             window.addEventListener('beforeunload', () => {
                 if (currentStudentName) {
                     const deleteUrl = `${SUPABASE_URL}/rest/v1/players?room_id=eq.${roomId}&session_id=eq.${sessionUuid}`;
-                    if (navigator.sendBeacon) {
-                        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
-                        // Nota: sendBeacon no soporta DELETE directo en algunos navegadores, usamos fetch keepalive:
-                    }
                     fetch(deleteUrl, {
                         method: 'DELETE',
                         headers: {
@@ -472,7 +470,7 @@
             renderCategories();
         }
 
-        window.setLanguage = function(lang) {
+        window.setLanguage = async function(lang) {
             currentLang = lang;
             document.getElementById('btn-lang-en').className = lang === 'en' 
                 ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold"
@@ -482,6 +480,9 @@
                 : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
 
             renderCategories();
+            if (currentRole === 'host') {
+                await updateRoomInSupabase({ lang: lang });
+            }
         }
 
         window.setStudentName = async function() {
@@ -500,8 +501,10 @@
 
         window.changeStudentName = async function() {
             await removePlayerFromSupabase();
+            hasSubmitted = false;
             document.getElementById('student-login-form').classList.remove('hidden');
             document.getElementById('student-logged-info').classList.add('hidden');
+            renderCategories();
         }
 
         function updateStudentUIState() {
@@ -541,21 +544,47 @@
             }
         }
 
-        // Botón para que el profesor limpie a todos los jugadores de golpe y empiece con 6 nuevos
         window.clearEntireRoom = async function() {
-            if (confirm("¿Estás seguro de limpiar toda la sala y expulsar a los jugadores actuales para una nueva ronda?")) {
+            if (confirm("¿Estás seguro de limpiar toda la sala y expulsar a los jugadores actuales?")) {
                 try {
-                    const { error } = await supabase
-                        .from('players')
-                        .delete()
-                        .eq('room_id', roomId);
-                    
-                    if (error) alert("Error al limpiar la sala.");
-                    else fetchAndRenderPlayers();
+                    await supabase.from('players').delete().eq('room_id', roomId);
+                    fetchAndRenderPlayers();
                 } catch (e) {
                     console.error(e);
                 }
             }
+        }
+
+        async function fetchRoomState() {
+            const { data, error } = await supabase
+                .from('rooms')
+                .select('*')
+                .eq('room_id', roomId)
+                .single();
+
+            if (data) {
+                activeLetter = data.letter || 'J';
+                timerSeconds = data.timer || 120;
+                gameStatus = data.status || 'waiting';
+                currentLang = data.lang || 'en';
+                activeCategoriesCount = data.cat_count || 8;
+
+                document.getElementById('active-letter-display').textContent = activeLetter;
+                document.getElementById('timer-display').textContent = timerSeconds;
+                document.getElementById('category-count-display').textContent = activeCategoriesCount;
+                
+                // Actualizar botones de idioma visualmente
+                document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+                document.getElementById('btn-lang-fr').className = currentLang === 'fr' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+
+                renderCategories();
+            }
+        }
+
+        async function updateRoomInSupabase(fields) {
+            await supabase
+                .from('rooms')
+                .upsert([{ room_id: roomId, letter: activeLetter, timer: timerSeconds, status: gameStatus, lang: currentLang, cat_count: activeCategoriesCount, ...fields }], { onConflict: 'room_id' });
         }
 
         function initAlphabetGrid() {
@@ -580,36 +609,49 @@
             modal.classList.toggle('hidden');
         }
 
-        window.selectLetter = function(letter) {
+        window.selectLetter = async function(letter) {
             activeLetter = letter;
             document.getElementById('active-letter-display').textContent = letter;
             document.getElementById('alphabet-select').value = letter;
             renderCategories();
+            if (currentRole === 'host') {
+                await updateRoomInSupabase({ letter: letter });
+            }
         }
 
-        window.rollRandomLetter = function() {
+        window.rollRandomLetter = async function() {
             const randomIndex = Math.floor(Math.random() * ALPHABET.length);
-            selectLetter(ALPHABET[randomIndex]);
+            await selectLetter(ALPHABET[randomIndex]);
         }
 
-        window.cycleTimerPreset = function() {
+        window.cycleTimerPreset = async function() {
             timerPresetIndex = (timerPresetIndex + 1) % TIMER_PRESETS.length;
             timerSeconds = TIMER_PRESETS[timerPresetIndex];
             document.getElementById('timer-display').textContent = timerSeconds;
+            if (currentRole === 'host') {
+                await updateRoomInSupabase({ timer: timerSeconds });
+            }
         }
 
-        window.toggleTimer = function() {
+        window.toggleTimer = async function() {
             isTimerRunning = !isTimerRunning;
             const iconContainer = document.getElementById('play-icon-container');
             const statusLbl = document.getElementById('lbl-play-status');
 
             if (isTimerRunning) {
+                gameStatus = 'playing';
                 iconContainer.innerHTML = `<i data-lucide="pause" class="w-12 h-12 fill-current text-amber-500"></i>`;
                 statusLbl.textContent = "Pause";
-                timerInterval = setInterval(() => {
+                await updateRoomInSupabase({ status: 'playing', timer: timerSeconds });
+                renderCategories(); // Habilita las casillas para estudiantes
+
+                timerInterval = setInterval(async () => {
                     if (timerSeconds > 0) {
                         timerSeconds--;
                         document.getElementById('timer-display').textContent = timerSeconds;
+                        if (currentRole === 'host') {
+                            await supabase.from('rooms').update({ timer: timerSeconds }).eq('room_id', roomId);
+                        }
                     } else {
                         clearInterval(timerInterval);
                         isTimerRunning = false;
@@ -618,21 +660,30 @@
                 }, 1000);
             } else {
                 clearInterval(timerInterval);
+                gameStatus = 'waiting';
                 iconContainer.innerHTML = `<i data-lucide="play" class="w-12 h-12 fill-current"></i>`;
                 statusLbl.textContent = "Play";
+                await updateRoomInSupabase({ status: 'waiting' });
+                renderCategories();
             }
             lucide.createIcons();
         }
 
-        window.adjustCategoryCount = function(delta) {
+        window.adjustCategoryCount = async function(delta) {
             activeCategoriesCount = Math.max(3, Math.min(12, activeCategoriesCount + delta));
             document.getElementById('category-count-display').textContent = activeCategoriesCount;
             renderCategories();
+            if (currentRole === 'host') {
+                await updateRoomInSupabase({ cat_count: activeCategoriesCount });
+            }
         }
 
         window.renderCategories = function() {
             const container = document.getElementById('categories-container');
             const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+
+            // Las casillas se bloquean si: es host, si el juego está en 'waiting', o si el estudiante ya envió sus respuestas ('hasSubmitted')
+            const shouldDisable = (currentRole === 'host') || (gameStatus !== 'playing') || hasSubmitted;
 
             container.innerHTML = list.map((cat, index) => `
                 <div class="p-3 flex items-center justify-between gap-3 bg-white dark:bg-zinc-950">
@@ -641,9 +692,9 @@
                         <span class="font-bold text-xs uppercase truncate">${cat.name}</span>
                     </div>
                     <div class="w-2/3">
-                        <input type="text" id="cat-input-${cat.id}" placeholder="Con ${activeLetter}..." 
-                            class="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-mono uppercase font-bold focus:outline-none focus:bg-white"
-                            ${currentRole === 'host' ? 'disabled' : ''}>
+                        <input type="text" id="cat-input-${cat.id}" placeholder="${gameStatus === 'playing' ? 'Con ' + activeLetter + '...' : 'Esperando inicio...'}" 
+                            class="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-mono uppercase font-bold focus:outline-none focus:bg-white disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-900"
+                            ${shouldDisable ? 'disabled' : ''}>
                     </div>
                 </div>
             `).join('');
@@ -675,16 +726,23 @@
                     .eq('room_id', roomId)
                     .eq('session_id', sessionUuid);
 
-                if (error) alert("Error al enviar respuestas.");
-                else alert(`¡Respuestas enviadas con éxito! Puntuación: ${scoreEarned} pts`);
+                if (error) {
+                    alert("Error al enviar respuestas.");
+                } else {
+                    hasSubmitted = true;
+                    renderCategories(); // Bloquea los inputs inmediatamente tras enviar
+                    alert(`¡Respuestas enviadas con éxito! Puntuación provisional: ${scoreEarned} pts`);
+                }
             } catch (e) {
                 console.error(e);
             }
         }
 
-        window.triggerStop = function() {
+        window.triggerStop = async function() {
             isTimerRunning = false;
             clearInterval(timerInterval);
+            gameStatus = 'stopped';
+            await updateRoomInSupabase({ status: 'stopped' });
             alert("🛑 ¡STOP! El tiempo ha terminado.");
             calculateAndShowPodium();
         }
@@ -729,15 +787,51 @@
         }
 
         function initRealtimeSubscription() {
+            // Suscripción a jugadores
             supabase
                 .channel('public:players')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
                     fetchAndRenderPlayers();
                 })
                 .subscribe();
+
+            // Suscripción al estado de la sala (Rooms) para sincronizar en tiempo real con estudiantes
+            supabase
+                .channel('public:rooms')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `room_id=eq.${roomId}` }, payload => {
+                    const newData = payload.new;
+                    if (newData) {
+                        activeLetter = newData.letter;
+                        timerSeconds = newData.timer;
+                        gameStatus = newData.status;
+                        currentLang = newData.lang;
+                        activeCategoriesCount = newData.cat_count;
+
+                        document.getElementById('active-letter-display').textContent = activeLetter;
+                        document.getElementById('timer-display').textContent = timerSeconds;
+                        document.getElementById('category-count-display').textContent = activeCategoriesCount;
+                        
+                        document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+                        document.getElementById('btn-lang-fr').className = currentLang === 'fr' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+
+                        renderCategories();
+
+                        // Si el estado cambia a 'stopped', abrir el podio automáticamente en todas las pantallas
+                        if (gameStatus === 'stopped') {
+                            showPodiumModalUI();
+                        }
+                    }
+                })
+                .subscribe();
         }
 
-        window.calculateAndShowPodium = function() {
+        window.calculateAndShowPodium = async function() {
+            gameStatus = 'stopped';
+            await updateRoomInSupabase({ status: 'stopped' });
+            showPodiumModalUI();
+        }
+
+        function showPodiumModalUI() {
             const modal = document.getElementById('podium-modal');
             const top3Container = document.getElementById('podium-top3-cards');
             const fullListContainer = document.getElementById('full-leaderboard-list');
@@ -776,9 +870,12 @@
         }
 
         window.restartGame = async function() {
-            if (confirm("¿Reiniciar la ronda y limpiar puntajes de los jugadores actuales?")) {
+            if (confirm("¿Reiniciar la ronda y limpiar puntajes y respuestas?")) {
                 try {
+                    hasSubmitted = false;
+                    gameStatus = 'waiting';
                     await supabase.from('players').update({ score: 0, answers: {}, status: 'Joined' }).eq('room_id', roomId);
+                    await updateRoomInSupabase({ status: 'waiting' });
                     rollRandomLetter();
                     fetchAndRenderPlayers();
                 } catch (e) {
