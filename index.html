@@ -23,12 +23,10 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Canvas Confetti Library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-        
+
         body {
             font-family: 'Inter', sans-serif;
             transition: background-color 0.3s, color 0.3s;
@@ -69,7 +67,7 @@
 <body class="bg-amber-50/30 text-black dark:bg-zinc-950 dark:text-white min-h-full flex flex-col justify-between transition-colors duration-200">
 
     <div class="max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 flex-grow flex flex-col justify-between">
-        
+
         <!-- HEADER / NAVIGATION TOP BAR -->
         <header class="flex flex-wrap items-center justify-between border-b-4 border-black dark:border-white pb-4 mb-4 gap-4">
             <div class="flex items-center space-x-3">
@@ -84,7 +82,7 @@
 
             <!-- Global Controls -->
             <div class="flex flex-wrap items-center gap-3">
-                
+
                 <!-- Role Switcher -->
                 <div id="role-switcher-box" class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
                     <button id="btn-role-host" onclick="switchRole('host')" class="px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold">
@@ -96,7 +94,7 @@
                 </div>
 
                 <!-- Language Selector -->
-                <div class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
+                <div id="lang-box" class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
                     <button id="btn-lang-en" onclick="setLanguage('en')" class="px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold">
                         🇬🇧 EN
                     </button>
@@ -123,7 +121,7 @@
                     <span class="text-xs text-zinc-700 dark:text-zinc-300">Room: <strong id="student-room-display" class="font-mono bg-black text-white px-1.5 py-0.5">#ROOM-1001</strong></span>
                 </div>
             </div>
-            
+
             <div id="student-login-form" class="flex items-center gap-2 w-full sm:w-auto">
                 <input type="text" id="student-name-input" placeholder="Ingresa tu nombre..." class="bg-white dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-bold focus:outline-none uppercase w-full sm:w-auto">
                 <button onclick="setStudentName()" class="bg-black text-white dark:bg-white dark:text-black font-black text-xs px-4 py-2 border-2 border-black dark:border-white hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors whitespace-nowrap">
@@ -139,17 +137,17 @@
 
         <!-- MAIN GAME GRID -->
         <main class="grid grid-cols-1 md:grid-cols-12 gap-0 border-4 border-black dark:border-white bg-white dark:bg-zinc-950 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)]">
-            
+
             <!-- LEFT COLUMN (Letter & Status Badge) -->
             <div id="left-column" class="md:col-span-4 border-b-4 md:border-b-0 md:border-r-4 border-black dark:border-white flex flex-col">
-                
+
                 <!-- BOX 1: LETTER DISPLAY -->
                 <div class="relative p-6 stripe-bg border-b-4 border-black dark:border-white flex flex-col justify-between h-64">
                     <div class="flex justify-between items-start">
                         <span class="font-bold uppercase tracking-wider text-xs border-2 border-black dark:border-white px-2 py-0.5 bg-white dark:bg-zinc-900" id="lbl-letter-title">
                             Selected Letter
                         </span>
-                        
+
                         <button id="btn-reroll" onclick="rollRandomLetter()" title="Randomize letter" class="host-only flex items-center gap-1 font-bold text-xs uppercase text-zinc-700 dark:text-zinc-300 hover:text-black dark:hover:text-white bg-white dark:bg-zinc-900 border-2 border-black dark:border-white px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] active:translate-x-0.5 active:translate-y-0.5">
                             <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
                             <span id="lbl-random">Re-roll</span>
@@ -215,7 +213,7 @@
 
             <!-- RIGHT COLUMN (Host Dashboard) -->
             <div id="right-column" class="host-only md:col-span-3 p-4 flex flex-col justify-between items-center text-center bg-zinc-50 dark:bg-zinc-900 min-h-[300px]">
-                
+
                 <!-- TOP ACTION: STOP / FINISH BUTTON -->
                 <button id="btn-stop" onclick="triggerStop()" class="w-full py-4 px-2 border-4 border-black dark:border-white bg-red-600 hover:bg-red-700 text-white font-black text-2xl tracking-wider uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 transition-all mb-3 cursor-pointer">
                     🛑 STOP MANUAL
@@ -278,7 +276,7 @@
         <div id="podium-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
             <div class="bg-white dark:bg-zinc-900 border-4 border-black dark:border-white max-w-2xl w-full p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center relative max-h-[90vh] overflow-y-auto">
                 <button onclick="closePodiumModal()" class="absolute top-4 right-4 font-black text-2xl hover:text-red-500">&times;</button>
-                
+
                 <div class="text-center mb-4">
                     <span class="bg-black text-white dark:bg-white dark:text-black font-black text-xs uppercase px-2 py-0.5 tracking-wider">Round Results</span>
                     <h2 class="text-3xl font-black uppercase tracking-tight mt-1" id="lbl-podium-title">🏆 Winner Podium</h2>
@@ -320,9 +318,10 @@
             <div class="flex gap-4 font-bold">
                 <span id="lbl-footer-title">English / French Vocabulary Stop! Game</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
+                <span id="conn-status" class="font-mono font-bold text-zinc-500">● Conectando...</span>
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.1</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.2</span>
             </div>
         </footer>
     </div>
@@ -346,7 +345,7 @@
         }
 
         const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-        
+
         const VOCAB_DICTIONARY = {
             en: [
                 { id: 'name', name: 'First Name' },
@@ -372,6 +371,9 @@
             ]
         };
 
+        const BTN_ON = "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold";
+        const BTN_OFF = "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white font-bold";
+
         let currentRole = 'host';
         let isForcedStudent = false;
         let currentLang = 'en';
@@ -382,10 +384,13 @@
         let connectedPlayersListCache = [];
         let hasSubmitted = false;
 
+        /* ------------------------------------------------------------------ */
+        /*  INICIO                                                             */
+        /* ------------------------------------------------------------------ */
         document.addEventListener('DOMContentLoaded', async () => {
             initAlphabetGrid();
             initAlphabetSelect();
-            
+
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('role') === 'student') {
                 isForcedStudent = true;
@@ -404,12 +409,23 @@
 
             updateQRCode();
             await fetchRoomState();
-            fetchAndRenderPlayers();
+            await fetchAndRenderPlayers();
             initRealtimeSubscription();
             lucide.createIcons();
 
-            window.addEventListener('beforeunload', () => {
-                if (currentStudentName) {
+            // Si el estudiante ya tenía nombre guardado, se vuelve a registrar
+            // (al cerrar/recargar la página el jugador se borra de la sala)
+            if (isForcedStudent && currentStudentName) {
+                await registerPlayerInSupabase(currentStudentName);
+            }
+
+            // Respaldo: si el websocket de Realtime se cae (wifi del salón),
+            // el celular del estudiante revisa la sala cada 3 segundos.
+            setInterval(pollRoomForStudent, 3000);
+
+            // pagehide es más confiable que beforeunload en celulares
+            window.addEventListener('pagehide', () => {
+                if (currentStudentName && isForcedStudent) {
                     const deleteUrl = `${SUPABASE_URL}/rest/v1/players?room_id=eq.${roomId}&session_id=eq.${sessionUuid}`;
                     fetch(deleteUrl, {
                         method: 'DELETE',
@@ -435,14 +451,14 @@
             const submitBox = document.getElementById('student-submit-box');
 
             if (role === 'host') {
-                hostBtn.className = "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold";
-                studentBtn.className = "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+                hostBtn.className = BTN_ON;
+                studentBtn.className = BTN_OFF;
                 banner.classList.add('hidden');
                 submitBox.classList.add('hidden');
                 document.querySelectorAll('.host-only').forEach(el => el.classList.remove('hidden'));
             } else {
-                studentBtn.className = "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold";
-                hostBtn.className = "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+                studentBtn.className = BTN_ON;
+                hostBtn.className = BTN_OFF;
                 banner.classList.remove('hidden');
                 submitBox.classList.remove('hidden');
                 document.querySelectorAll('.host-only').forEach(el => el.classList.add('hidden'));
@@ -450,21 +466,23 @@
             renderCategories();
         }
 
+        function updateLangButtons() {
+            document.getElementById('btn-lang-en').className = currentLang === 'en' ? BTN_ON : BTN_OFF;
+            document.getElementById('btn-lang-fr').className = currentLang === 'fr' ? BTN_ON : BTN_OFF;
+        }
+
         window.setLanguage = async function(lang) {
             currentLang = lang;
-            document.getElementById('btn-lang-en').className = lang === 'en' 
-                ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold"
-                : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
-            document.getElementById('btn-lang-fr').className = lang === 'fr' 
-                ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold"
-                : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
-
+            updateLangButtons();
             renderCategories();
             if (currentRole === 'host') {
                 await updateRoomInSupabase({ lang: lang });
             }
         }
 
+        /* ------------------------------------------------------------------ */
+        /*  JUGADORES                                                          */
+        /* ------------------------------------------------------------------ */
         window.setStudentName = async function() {
             const input = document.getElementById('student-name-input');
             const val = input.value.trim().toUpperCase();
@@ -474,7 +492,7 @@
             }
             currentStudentName = val;
             localStorage.setItem('STOP_STUDENT_NAME', currentStudentName);
-            
+
             updateStudentUIState();
             await registerPlayerInSupabase(currentStudentName);
         }
@@ -482,6 +500,8 @@
         window.changeStudentName = async function() {
             await removePlayerFromSupabase();
             hasSubmitted = false;
+            currentStudentName = '';
+            localStorage.removeItem('STOP_STUDENT_NAME');
             document.getElementById('student-login-form').classList.remove('hidden');
             document.getElementById('student-logged-info').classList.add('hidden');
             renderCategories();
@@ -535,41 +555,109 @@
             }
         }
 
+        /* ------------------------------------------------------------------ */
+        /*  ESTADO DE LA SALA (rooms)                                          */
+        /* ------------------------------------------------------------------ */
         async function fetchRoomState() {
             const { data, error } = await supabase
                 .from('rooms')
                 .select('*')
                 .eq('room_id', roomId)
-                .single();
+                .maybeSingle();
 
-            if (data) {
-                activeLetter = data.letter || 'J';
-                gameStatus = data.status || 'waiting';
-                currentLang = data.lang || 'en';
-                activeCategoriesCount = data.cat_count || 8;
+            if (error) {
+                console.error("Error al leer la sala:", error);
+                return;
+            }
 
-                document.getElementById('active-letter-display').textContent = activeLetter;
-                document.getElementById('alphabet-select').value = activeLetter;
-                document.getElementById('category-count-display').textContent = activeCategoriesCount;
-                
-                document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
-                document.getElementById('btn-lang-fr').className = currentLang === 'fr' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
+            if (!data) {
+                // La sala no existe todavía: se crea con valores por defecto
+                const { error: insErr } = await supabase.from('rooms').insert([{ room_id: roomId }]);
+                if (insErr) console.error("Error al crear la sala:", insErr);
+                return;
+            }
 
-                updateGameStatusUI();
-                renderCategories();
+            applyRoomData(data);
+        }
+
+        // Aplica el estado de la sala (viene de la lectura inicial, de Realtime o del respaldo)
+        function applyRoomData(d) {
+            const prevStatus = gameStatus;
+
+            activeLetter = d.letter || 'J';
+            gameStatus = d.status || 'waiting';
+            currentLang = d.lang || 'en';
+            activeCategoriesCount = d.cat_count || 8;
+
+            document.getElementById('active-letter-display').textContent = activeLetter;
+            document.getElementById('alphabet-select').value = activeLetter;
+            document.getElementById('category-count-display').textContent = activeCategoriesCount;
+            updateLangButtons();
+            updateGameStatusUI();
+
+            // ¿Empieza una ronda nueva o se reinició? -> limpiar respuestas
+            const newRound =
+                (gameStatus === 'playing' && prevStatus !== 'playing') ||
+                (gameStatus === 'waiting' && prevStatus !== 'waiting');
+
+            if (newRound) hasSubmitted = false;
+            renderCategories(newRound);
+        }
+
+        // Solo se envían los campos que cambiaron (no se pisa el estado de otros)
+        async function updateRoomInSupabase(fields) {
+            const { error } = await supabase
+                .from('rooms')
+                .update(fields)
+                .eq('room_id', roomId);
+            if (error) console.error("Error actualizando la sala:", error);
+        }
+
+        async function pollRoomForStudent() {
+            if (currentRole !== 'student') return;
+            try {
+                const { data } = await supabase
+                    .from('rooms').select('*').eq('room_id', roomId).maybeSingle();
+                if (!data) return;
+
+                const changed =
+                    data.letter !== activeLetter ||
+                    data.status !== gameStatus ||
+                    data.lang !== currentLang ||
+                    data.cat_count !== activeCategoriesCount;
+
+                if (changed) await handleRoomChange(data);
+            } catch (e) {
+                console.warn("Polling falló:", e);
             }
         }
 
-        async function updateRoomInSupabase(fields) {
-            await supabase
-                .from('rooms')
-                .upsert([{ room_id: roomId, letter: activeLetter, status: gameStatus, lang: currentLang, cat_count: activeCategoriesCount, ...fields }], { onConflict: 'room_id' });
+        // Punto único para reaccionar a cambios de sala (Realtime y respaldo)
+        async function handleRoomChange(newData) {
+            const prev = gameStatus;
+            const goingToStopped = newData.status === 'stopped' && prev !== 'stopped';
+
+            // Si otro cerró la ronda, se guardan las respuestas que ya escribí
+            if (goingToStopped && currentRole === 'student' && currentStudentName && !hasSubmitted && prev === 'playing') {
+                await saveStudentAnswers();
+                hasSubmitted = true;
+            }
+
+            applyRoomData(newData);
+
+            if (goingToStopped) {
+                await fetchAndRenderPlayers();
+                showPodiumModalUI(true);
+            }
         }
 
+        /* ------------------------------------------------------------------ */
+        /*  ALFABETO / LETRA                                                   */
+        /* ------------------------------------------------------------------ */
         function initAlphabetGrid() {
             const grid = document.getElementById('alphabet-grid');
             grid.innerHTML = ALPHABET.map(letter => `
-                <button onclick="selectLetter('${letter}'); toggleAlphabetModal();" 
+                <button onclick="selectLetter('${letter}'); toggleAlphabetModal();"
                         class="p-3 border-2 border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors font-mono font-bold text-center">
                     ${letter}
                 </button>
@@ -603,12 +691,15 @@
             await selectLetter(ALPHABET[randomIndex]);
         }
 
+        /* ------------------------------------------------------------------ */
+        /*  CONTROL DE LA RONDA                                                */
+        /* ------------------------------------------------------------------ */
         window.startGameAction = async function() {
             gameStatus = 'playing';
             hasSubmitted = false;
-            await updateRoomInSupabase({ status: 'playing' });
             updateGameStatusUI();
-            renderCategories();
+            renderCategories(true);
+            await updateRoomInSupabase({ status: 'playing' });
         }
 
         function updateGameStatusUI() {
@@ -634,10 +725,17 @@
             }
         }
 
-        window.renderCategories = function() {
+        // clearInputs = true vacía las respuestas (ronda nueva). Si no, conserva lo escrito.
+        window.renderCategories = function(clearInputs = false) {
             const container = document.getElementById('categories-container');
-            const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
 
+            // Guardar lo que el estudiante ya escribió para no perderlo al re-renderizar
+            const saved = {};
+            if (!clearInputs) {
+                container.querySelectorAll('input').forEach(i => { saved[i.id] = i.value; });
+            }
+
+            const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
             const shouldDisable = (currentRole === 'host') || (gameStatus !== 'playing') || hasSubmitted;
 
             container.innerHTML = list.map((cat, index) => `
@@ -647,12 +745,16 @@
                         <span class="font-bold text-xs uppercase truncate">${cat.name}</span>
                     </div>
                     <div class="w-2/3">
-                        <input type="text" id="cat-input-${cat.id}" placeholder="${gameStatus === 'playing' ? 'Con ' + activeLetter + '...' : 'Esperando inicio...'}" 
+                        <input type="text" id="cat-input-${cat.id}" placeholder="${gameStatus === 'playing' ? 'Con ' + activeLetter + '...' : 'Esperando inicio...'}"
                             class="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-mono uppercase font-bold focus:outline-none focus:bg-white disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-900"
                             ${shouldDisable ? 'disabled' : ''}>
                     </div>
                 </div>
             `).join('');
+
+            container.querySelectorAll('input').forEach(i => {
+                if (saved[i.id]) i.value = saved[i.id];
+            });
         }
 
         function isValidWord(word) {
@@ -660,6 +762,34 @@
             const hasVowel = /[AEIOUÁÉÍÓÚY]/.test(word);
             const hasConsonant = /[BCDFGHJKLMNPQRSTVWXZ]/.test(word);
             return hasVowel && hasConsonant;
+        }
+
+        // Lee los inputs, calcula puntos y los guarda en la tabla players
+        async function saveStudentAnswers() {
+            const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+            let answers = {};
+            let scoreEarned = 0;
+            let invalidWordsCount = 0;
+
+            list.forEach(cat => {
+                const el = document.getElementById(`cat-input-${cat.id}`);
+                const val = el ? el.value.trim().toUpperCase() : '';
+                answers[cat.id] = val;
+
+                if (val && val.startsWith(activeLetter)) {
+                    if (isValidWord(val)) scoreEarned += 10;
+                    else invalidWordsCount++;
+                }
+            });
+
+            const { error } = await supabase
+                .from('players')
+                .update({ answers: answers, score: scoreEarned, status: 'Submitted' })
+                .eq('room_id', roomId)
+                .eq('session_id', sessionUuid);
+
+            if (error) console.error("Error al guardar respuestas:", error);
+            return { error, scoreEarned, invalidWordsCount };
         }
 
         window.submitStudentAnswersAction = async function() {
@@ -674,49 +804,29 @@
                 return;
             }
 
-            const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
-            let answers = {};
-            let scoreEarned = 0;
-            let invalidWordsCount = 0;
-
-            list.forEach(cat => {
-                const val = document.getElementById(`cat-input-${cat.id}`).value.trim().toUpperCase();
-                answers[cat.id] = val;
-                
-                if (val) {
-                    if (val.startsWith(activeLetter)) {
-                        if (isValidWord(val)) {
-                            scoreEarned += 10;
-                        } else {
-                            invalidWordsCount++;
-                        }
-                    }
-                }
-            });
-
-            if (invalidWordsCount > 0) {
-                alert(`⚠️ Hay ${invalidWordsCount} palabra(s) que no son válidas (mínimo 3 letras, mezclando vocales y consonantes). No contarán puntos.`);
-            }
-
             try {
-                const { error } = await supabase
-                    .from('players')
-                    .update({ answers: answers, score: scoreEarned, status: 'Submitted' })
-                    .eq('room_id', roomId)
-                    .eq('session_id', sessionUuid);
+                const { error, scoreEarned, invalidWordsCount } = await saveStudentAnswers();
 
                 if (error) {
                     alert("Error al enviar respuestas.");
-                } else {
-                    hasSubmitted = true;
-                    renderCategories();
-                    
-                    gameStatus = 'stopped';
-                    await updateRoomInSupabase({ status: 'stopped' });
-                    
-                    alert(`🚨 ¡STOP! Fuiste el primero en enviar. ¡Fin de la ronda! Puntuación: ${scoreEarned} pts`);
-                    calculateAndShowPodium();
+                    return;
                 }
+
+                if (invalidWordsCount > 0) {
+                    alert(`⚠️ Hay ${invalidWordsCount} palabra(s) que no son válidas (mínimo 3 letras, mezclando vocales y consonantes). No contarán puntos.`);
+                }
+
+                hasSubmitted = true;
+                gameStatus = 'stopped';
+                updateGameStatusUI();
+                renderCategories();
+
+                // Avisa a todos los demás celulares y a la pantalla del host
+                await updateRoomInSupabase({ status: 'stopped' });
+
+                await fetchAndRenderPlayers();
+                showPodiumModalUI(true);
+                alert(`🚨 ¡STOP! Fuiste el primero en enviar. ¡Fin de la ronda! Puntuación: ${scoreEarned} pts`);
             } catch (e) {
                 console.error(e);
             }
@@ -724,18 +834,23 @@
 
         window.triggerStop = async function() {
             gameStatus = 'stopped';
+            updateGameStatusUI();
+            renderCategories();
             await updateRoomInSupabase({ status: 'stopped' });
             alert("🛑 ¡STOP manual activado por el Host!");
-            calculateAndShowPodium();
+            await fetchAndRenderPlayers();
+            showPodiumModalUI(true);
         }
 
+        /* ------------------------------------------------------------------ */
+        /*  LISTA DE JUGADORES                                                 */
+        /* ------------------------------------------------------------------ */
         async function fetchAndRenderPlayers() {
             const { data: players, error } = await supabase
                 .from('players')
                 .select('*')
                 .eq('room_id', roomId)
-                .order('score', { ascending: false })
-                .limit(6);
+                .order('score', { ascending: false });
 
             if (error) {
                 console.error("Error al obtener jugadores:", error);
@@ -745,72 +860,79 @@
             connectedPlayersListCache = players || [];
             const listContainer = document.getElementById('connected-players-list');
             const countBadge = document.getElementById('player-count-badge');
-            
+
             if (countBadge) countBadge.textContent = `${connectedPlayersListCache.length} Joined`;
 
-            if (!connectedPlayersListCache || connectedPlayersListCache.length === 0) {
+            if (connectedPlayersListCache.length === 0) {
                 listContainer.innerHTML = `<div id="no-players-placeholder" class="text-zinc-400 italic text-xs py-4 text-center">Waiting for students to join...</div>`;
-                return;
+            } else {
+                listContainer.innerHTML = connectedPlayersListCache.map((p, index) => {
+                    let medal = '';
+                    if (index === 0) medal = '🥇 ';
+                    else if (index === 1) medal = '🥈 ';
+                    else if (index === 2) medal = '🥉 ';
+
+                    return `
+                        <div class="flex items-center justify-between p-2 border border-black dark:border-white mb-1 bg-white dark:bg-zinc-900">
+                            <span class="font-bold text-xs truncate max-w-[130px]">${medal}${index + 1}. ${p.name}</span>
+                            <span class="font-mono text-xs font-black bg-emerald-500 text-white px-2 py-0.5 rounded">${p.score || 0} pts</span>
+                        </div>
+                    `;
+                }).join('');
             }
 
-            listContainer.innerHTML = connectedPlayersListCache.map((p, index) => {
-                let medal = '';
-                if (index === 0) medal = '🥇 ';
-                else if (index === 1) medal = '🥈 ';
-                else if (index === 2) medal = '🥉 ';
+            // Si el podio está abierto, se actualiza con los puntajes nuevos (sin confeti)
+            const modal = document.getElementById('podium-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                showPodiumModalUI(false);
+            }
+        }
 
-                return `
-                    <div class="flex items-center justify-between p-2 border border-black dark:border-white mb-1 bg-white dark:bg-zinc-900">
-                        <span class="font-bold text-xs truncate max-w-[130px]">${medal}${index + 1}. ${p.name}</span>
-                        <span class="font-mono text-xs font-black bg-emerald-500 text-white px-2 py-0.5 rounded">${p.score || 0} pts</span>
-                    </div>
-                `;
-            }).join('');
+        /* ------------------------------------------------------------------ */
+        /*  REALTIME                                                           */
+        /* ------------------------------------------------------------------ */
+        function setConnStatus(ok, text) {
+            const el = document.getElementById('conn-status');
+            if (!el) return;
+            el.textContent = (ok ? '● ' : '○ ') + text;
+            el.className = 'font-mono font-bold ' + (ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600');
         }
 
         function initRealtimeSubscription() {
             supabase
-                .channel('public:players')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
+                .channel('players-' + roomId)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => {
                     fetchAndRenderPlayers();
                 })
-                .subscribe();
+                .subscribe(status => console.log('Realtime players:', status));
 
             supabase
-                .channel('public:rooms')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `room_id=eq.${roomId}` }, payload => {
-                    const newData = payload.new;
-                    if (newData) {
-                        activeLetter = newData.letter;
-                        gameStatus = newData.status;
-                        currentLang = newData.lang;
-                        activeCategoriesCount = newData.cat_count;
-
-                        document.getElementById('active-letter-display').textContent = activeLetter;
-                        document.getElementById('alphabet-select').value = activeLetter;
-                        document.getElementById('category-count-display').textContent = activeCategoriesCount;
-                        
-                        document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
-                        document.getElementById('btn-lang-fr').className = currentLang === 'fr' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
-
-                        updateGameStatusUI();
-                        renderCategories();
-
-                        if (gameStatus === 'stopped') {
-                            showPodiumModalUI();
-                        }
-                    }
-                })
-                .subscribe();
+                .channel('rooms-' + roomId)
+                .on('postgres_changes',
+                    { event: '*', schema: 'public', table: 'rooms', filter: `room_id=eq.${roomId}` },
+                    payload => {
+                        if (payload.new && payload.new.room_id) handleRoomChange(payload.new);
+                    })
+                .subscribe(status => {
+                    console.log('Realtime rooms:', status);   // debe decir SUBSCRIBED
+                    if (status === 'SUBSCRIBED') setConnStatus(true, 'En vivo');
+                    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setConnStatus(false, 'Sin conexión en vivo');
+                });
         }
 
+        /* ------------------------------------------------------------------ */
+        /*  PODIO                                                              */
+        /* ------------------------------------------------------------------ */
         window.calculateAndShowPodium = async function() {
             gameStatus = 'stopped';
+            updateGameStatusUI();
+            renderCategories();
             await updateRoomInSupabase({ status: 'stopped' });
-            showPodiumModalUI();
+            await fetchAndRenderPlayers();
+            showPodiumModalUI(true);
         }
 
-        function showPodiumModalUI() {
+        function showPodiumModalUI(withConfetti = true) {
             const modal = document.getElementById('podium-modal');
             const top3Container = document.getElementById('podium-top3-cards');
             const fullListContainer = document.getElementById('full-leaderboard-list');
@@ -824,7 +946,7 @@
                     <div class="flex flex-col items-center">
                         <span class="font-black text-xs mb-1 truncate max-w-[90px]">${p.name}</span>
                         <span class="font-mono font-bold text-[10px] mb-1">${p.score || 0} pts</span>
-                        <div class="${heights[i]} w-full border-2 border-black flex items-center justify-center font-black text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                        <div class="${heights[i]} w-full border-2 border-black flex items-center justify-center font-black text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] text-black">
                             ${medals[i]}
                         </div>
                     </div>
@@ -838,8 +960,9 @@
                 </div>
             `).join('');
 
+            const wasHidden = modal.classList.contains('hidden');
             modal.classList.remove('hidden');
-            if (window.confetti) {
+            if (withConfetti && wasHidden && window.confetti) {
                 confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
             }
         }
@@ -853,11 +976,19 @@
                 try {
                     hasSubmitted = false;
                     gameStatus = 'waiting';
+
                     await supabase.from('players').update({ score: 0, answers: {}, status: 'Joined' }).eq('room_id', roomId);
-                    await updateRoomInSupabase({ status: 'waiting' });
+
+                    // Una sola actualización: estado + letra nueva
+                    const newLetter = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+                    activeLetter = newLetter;
+                    document.getElementById('active-letter-display').textContent = newLetter;
+                    document.getElementById('alphabet-select').value = newLetter;
+
                     updateGameStatusUI();
-                    rollRandomLetter();
-                    fetchAndRenderPlayers();
+                    renderCategories(true);
+                    await updateRoomInSupabase({ status: 'waiting', letter: newLetter });
+                    await fetchAndRenderPlayers();
                 } catch (e) {
                     console.error(e);
                 }
