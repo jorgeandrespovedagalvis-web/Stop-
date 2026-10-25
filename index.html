@@ -321,7 +321,7 @@
             <div class="flex items-center gap-3">
                 <span id="conn-status" class="font-mono font-bold text-zinc-500">● Conectando...</span>
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.2</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.3</span>
             </div>
         </footer>
     </div>
@@ -524,7 +524,7 @@
                         { room_id: roomId, session_id: sessionUuid, name: name, status: 'Joined', score: 0 }
                     ], { onConflict: 'room_id,session_id' });
 
-                if (error) console.error("Error al registrar jugador:", error);
+                if (error) reportError('registrar al jugador', error);
                 else fetchAndRenderPlayers();
             } catch (e) {
                 console.warn("Excepción al registrar jugador:", e);
@@ -566,7 +566,7 @@
                 .maybeSingle();
 
             if (error) {
-                console.error("Error al leer la sala:", error);
+                reportError('leer la sala', error);
                 return;
             }
 
@@ -606,11 +606,27 @@
 
         // Solo se envían los campos que cambiaron (no se pisa el estado de otros)
         async function updateRoomInSupabase(fields) {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('rooms')
                 .update(fields)
-                .eq('room_id', roomId);
-            if (error) console.error("Error actualizando la sala:", error);
+                .eq('room_id', roomId)
+                .select();
+            if (error) {
+                reportError('actualizar la sala', error);
+            } else if (!data || data.length === 0) {
+                reportError('actualizar la sala', { message: 'No se modificó ninguna fila: la sala no existe o no hay permiso.' });
+            }
+        }
+
+        let errorAlerted = false;
+        function reportError(ctx, error) {
+            console.error('Error al ' + ctx + ':', error);
+            const code = error && error.code ? ' (' + error.code + ')' : '';
+            setConnStatus(false, 'Error al ' + ctx + code);
+            if (error && error.code === '42501' && !errorAlerted) {
+                errorAlerted = true;
+                alert('Supabase bloqueó el acceso (error 42501). Faltan los GRANT sobre las tablas rooms y players. Ejecuta el SQL de permisos en Supabase.');
+            }
         }
 
         async function pollRoomForStudent() {
@@ -853,7 +869,7 @@
                 .order('score', { ascending: false });
 
             if (error) {
-                console.error("Error al obtener jugadores:", error);
+                reportError('leer los jugadores', error);
                 return;
             }
 
