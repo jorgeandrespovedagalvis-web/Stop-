@@ -322,7 +322,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.0</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.1</span>
             </div>
         </footer>
     </div>
@@ -549,6 +549,7 @@
                 activeCategoriesCount = data.cat_count || 8;
 
                 document.getElementById('active-letter-display').textContent = activeLetter;
+                document.getElementById('alphabet-select').value = activeLetter;
                 document.getElementById('category-count-display').textContent = activeCategoriesCount;
                 
                 document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
@@ -698,7 +699,6 @@
             }
 
             try {
-                // Registrar respuestas y puntaje del estudiante
                 const { error } = await supabase
                     .from('players')
                     .update({ answers: answers, score: scoreEarned, status: 'Submitted' })
@@ -711,7 +711,6 @@
                     hasSubmitted = true;
                     renderCategories();
                     
-                    // 🛑 EL PRIMERO QUE ENVÍA GANA Y DETIENE EL JUEGO PARA TODOS
                     gameStatus = 'stopped';
                     await updateRoomInSupabase({ status: 'stopped' });
                     
@@ -788,6 +787,7 @@
                         activeCategoriesCount = newData.cat_count;
 
                         document.getElementById('active-letter-display').textContent = activeLetter;
+                        document.getElementById('alphabet-select').value = activeLetter;
                         document.getElementById('category-count-display').textContent = activeCategoriesCount;
                         
                         document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
