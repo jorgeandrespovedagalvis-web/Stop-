@@ -336,7 +336,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v4.0</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v4.1</span>
             </div>
         </footer>
     </div>
@@ -573,7 +573,6 @@
                 document.getElementById('timer-display').textContent = timerSeconds;
                 document.getElementById('category-count-display').textContent = activeCategoriesCount;
                 
-                // Actualizar botones de idioma visualmente
                 document.getElementById('btn-lang-en').className = currentLang === 'en' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
                 document.getElementById('btn-lang-fr').className = currentLang === 'fr' ? "px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold" : "px-2.5 py-1 rounded transition-colors text-zinc-600 dark:text-zinc-400 font-bold";
 
@@ -643,7 +642,7 @@
                 iconContainer.innerHTML = `<i data-lucide="pause" class="w-12 h-12 fill-current text-amber-500"></i>`;
                 statusLbl.textContent = "Pause";
                 await updateRoomInSupabase({ status: 'playing', timer: timerSeconds });
-                renderCategories(); // Habilita las casillas para estudiantes
+                renderCategories();
 
                 timerInterval = setInterval(async () => {
                     if (timerSeconds > 0) {
@@ -682,7 +681,6 @@
             const container = document.getElementById('categories-container');
             const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
 
-            // Las casillas se bloquean si: es host, si el juego está en 'waiting', o si el estudiante ya envió sus respuestas ('hasSubmitted')
             const shouldDisable = (currentRole === 'host') || (gameStatus !== 'playing') || hasSubmitted;
 
             container.innerHTML = list.map((cat, index) => `
@@ -700,6 +698,14 @@
             `).join('');
         }
 
+        // Función auxiliar para validar que sea una palabra real (contiene vocales y consonantes)
+        function isValidWord(word) {
+            if (!word || word.length < 3) return false;
+            const hasVowel = /[AEIOUÁÉÍÓÚY]/.test(word);
+            const hasConsonant = /[BCDFGHJKLMNPQRSTVWXZ]/.test(word);
+            return hasVowel && hasConsonant;
+        }
+
         window.submitStudentAnswersAction = async function() {
             if (!currentStudentName) {
                 alert("¡Primero debes ingresar tu nombre en la parte superior!");
@@ -710,14 +716,28 @@
             const list = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
             let answers = {};
             let scoreEarned = 0;
+            let invalidWordsCount = 0;
 
             list.forEach(cat => {
                 const val = document.getElementById(`cat-input-${cat.id}`).value.trim().toUpperCase();
                 answers[cat.id] = val;
-                if (val && val.startsWith(activeLetter)) {
-                    scoreEarned += 10;
+                
+                if (val) {
+                    // Validar si empieza por la letra activa
+                    if (val.startsWith(activeLetter)) {
+                        // Validar regla de palabra real (no solo vocales o solo consonantes, y mín 3 letras)
+                        if (isValidWord(val)) {
+                            scoreEarned += 10;
+                        } else {
+                            invalidWordsCount++;
+                        }
+                    }
                 }
             });
+
+            if (invalidWordsCount > 0) {
+                alert(`⚠️ Hay ${invalidWordsCount} respuesta(s) que no son palabras válidas (deben tener al menos 3 letras y mezclar vocales y consonantes). No contarán puntos.`);
+            }
 
             try {
                 const { error } = await supabase
@@ -730,8 +750,8 @@
                     alert("Error al enviar respuestas.");
                 } else {
                     hasSubmitted = true;
-                    renderCategories(); // Bloquea los inputs inmediatamente tras enviar
-                    alert(`¡Respuestas enviadas con éxito! Puntuación provisional: ${scoreEarned} pts`);
+                    renderCategories();
+                    alert(`¡Respuestas enviadas con éxito! Puntuación: ${scoreEarned} pts`);
                 }
             } catch (e) {
                 console.error(e);
@@ -787,7 +807,6 @@
         }
 
         function initRealtimeSubscription() {
-            // Suscripción a jugadores
             supabase
                 .channel('public:players')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
@@ -795,7 +814,6 @@
                 })
                 .subscribe();
 
-            // Suscripción al estado de la sala (Rooms) para sincronizar en tiempo real con estudiantes
             supabase
                 .channel('public:rooms')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `room_id=eq.${roomId}` }, payload => {
@@ -816,7 +834,6 @@
 
                         renderCategories();
 
-                        // Si el estado cambia a 'stopped', abrir el podio automáticamente en todas las pantallas
                         if (gameStatus === 'stopped') {
                             showPodiumModalUI();
                         }
