@@ -271,10 +271,13 @@
                     </div>
                 </div>
 
-                <!-- ACTION BUTTONS: PODIUM & RESTART -->
+                <!-- ACTION BUTTONS: PODIUM, CLEAR ROOM & RESTART -->
                 <div class="w-full space-y-2">
                     <button onclick="calculateAndShowPodium()" class="w-full py-2 px-3 border-2 border-black dark:border-white bg-amber-400 hover:bg-amber-500 text-black font-black uppercase text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
                         🏆 Show Winner Podium
+                    </button>
+                    <button onclick="clearEntireRoom()" class="w-full py-2 px-3 border-2 border-black dark:border-white bg-rose-500 hover:bg-rose-600 text-white font-black uppercase text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                        🧹 Limpiar Sala Completa
                     </button>
                     <button id="btn-restart-round" onclick="restartGame()" class="w-full flex items-center justify-center gap-2 p-2 border-2 border-black dark:border-white hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all group bg-white dark:bg-zinc-900">
                         <i data-lucide="rotate-ccw" class="w-4 h-4 group-hover:rotate-[-45deg] transition-transform"></i>
@@ -333,7 +336,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v3.6</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v3.7</span>
             </div>
         </footer>
     </div>
@@ -350,7 +353,6 @@
         const roomId = "ROOM-1001";
         window.roomId = roomId;
 
-        // Identificador de sesión único por pestaña/navegador del estudiante
         let sessionUuid = localStorage.getItem('STOP_SESSION_UUID');
         if (!sessionUuid) {
             sessionUuid = 'sess-' + Math.random().toString(36).substring(2, 11);
@@ -423,13 +425,15 @@
             initRealtimeSubscription();
             lucide.createIcons();
 
-            // Limpiar de Supabase al cerrar o recargar la ventana del estudiante
+            // Limpieza automática al cerrar pestaña
             window.addEventListener('beforeunload', () => {
                 if (currentStudentName) {
-                    // Usar sendBeacon o llamada síncrona/asíncrona para eliminar
-                    navigator.sendBeacon ? null : removePlayerFromSupabase();
-                    // Como fallback por fetch síncrono rápido:
-                    fetch(`${SUPABASE_URL}/rest/v1/players?room_id=eq.${roomId}&session_id=eq.${sessionUuid}`, {
+                    const deleteUrl = `${SUPABASE_URL}/rest/v1/players?room_id=eq.${roomId}&session_id=eq.${sessionUuid}`;
+                    if (navigator.sendBeacon) {
+                        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+                        // Nota: sendBeacon no soporta DELETE directo en algunos navegadores, usamos fetch keepalive:
+                    }
+                    fetch(deleteUrl, {
                         method: 'DELETE',
                         headers: {
                             'apikey': SUPABASE_ANON_KEY,
@@ -495,7 +499,6 @@
         }
 
         window.changeStudentName = async function() {
-            // Borrar el anterior de supabase antes de cambiar
             await removePlayerFromSupabase();
             document.getElementById('student-login-form').classList.remove('hidden');
             document.getElementById('student-logged-info').classList.add('hidden');
@@ -535,6 +538,23 @@
                 fetchAndRenderPlayers();
             } catch (e) {
                 console.warn("Error al eliminar jugador:", e);
+            }
+        }
+
+        // Botón para que el profesor limpie a todos los jugadores de golpe y empiece con 6 nuevos
+        window.clearEntireRoom = async function() {
+            if (confirm("¿Estás seguro de limpiar toda la sala y expulsar a los jugadores actuales para una nueva ronda?")) {
+                try {
+                    const { error } = await supabase
+                        .from('players')
+                        .delete()
+                        .eq('room_id', roomId);
+                    
+                    if (error) alert("Error al limpiar la sala.");
+                    else fetchAndRenderPlayers();
+                } catch (e) {
+                    console.error(e);
+                }
             }
         }
 
@@ -756,7 +776,7 @@
         }
 
         window.restartGame = async function() {
-            if (confirm("¿Reiniciar la ronda y limpiar puntajes?")) {
+            if (confirm("¿Reiniciar la ronda y limpiar puntajes de los jugadores actuales?")) {
                 try {
                     await supabase.from('players').update({ score: 0, answers: {}, status: 'Joined' }).eq('room_id', roomId);
                     rollRandomLetter();
