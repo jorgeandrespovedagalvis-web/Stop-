@@ -336,7 +336,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v4.1</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v4.2</span>
             </div>
         </footer>
     </div>
@@ -644,21 +644,9 @@
                 await updateRoomInSupabase({ status: 'playing', timer: timerSeconds });
                 renderCategories();
 
-                timerInterval = setInterval(async () => {
-                    if (timerSeconds > 0) {
-                        timerSeconds--;
-                        document.getElementById('timer-display').textContent = timerSeconds;
-                        if (currentRole === 'host') {
-                            await supabase.from('rooms').update({ timer: timerSeconds }).eq('room_id', roomId);
-                        }
-                    } else {
-                        clearInterval(timerInterval);
-                        isTimerRunning = false;
-                        triggerStop();
-                    }
-                }, 1000);
+                startLocalCountdown();
             } else {
-                clearInterval(timerInterval);
+                stopLocalCountdown();
                 gameStatus = 'waiting';
                 iconContainer.innerHTML = `<i data-lucide="play" class="w-12 h-12 fill-current"></i>`;
                 statusLbl.textContent = "Play";
@@ -666,6 +654,34 @@
                 renderCategories();
             }
             lucide.createIcons();
+        }
+
+        function startLocalCountdown() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(async () => {
+                if (timerSeconds > 0) {
+                    timerSeconds--;
+                    document.getElementById('timer-display').textContent = timerSeconds;
+                    
+                    // Solo el host actualiza el valor exacto en la base de datos cada segundo para sincronizar
+                    if (currentRole === 'host') {
+                        await supabase.from('rooms').update({ timer: timerSeconds }).eq('room_id', roomId);
+                    }
+                } else {
+                    stopLocalCountdown();
+                    if (currentRole === 'host') {
+                        triggerStop();
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopLocalCountdown() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            isTimerRunning = false;
         }
 
         window.adjustCategoryCount = async function(delta) {
@@ -698,7 +714,6 @@
             `).join('');
         }
 
-        // Función auxiliar para validar que sea una palabra real (contiene vocales y consonantes)
         function isValidWord(word) {
             if (!word || word.length < 3) return false;
             const hasVowel = /[AEIOUÁÉÍÓÚY]/.test(word);
@@ -723,9 +738,7 @@
                 answers[cat.id] = val;
                 
                 if (val) {
-                    // Validar si empieza por la letra activa
                     if (val.startsWith(activeLetter)) {
-                        // Validar regla de palabra real (no solo vocales o solo consonantes, y mín 3 letras)
                         if (isValidWord(val)) {
                             scoreEarned += 10;
                         } else {
@@ -759,8 +772,7 @@
         }
 
         window.triggerStop = async function() {
-            isTimerRunning = false;
-            clearInterval(timerInterval);
+            stopLocalCountdown();
             gameStatus = 'stopped';
             await updateRoomInSupabase({ status: 'stopped' });
             alert("🛑 ¡STOP! El tiempo ha terminado.");
@@ -834,6 +846,15 @@
 
                         renderCategories();
 
+                        // Si el host inicia el juego (status === 'playing'), el estudiante activa su cuenta regresiva local automáticamente
+                        if (gameStatus === 'playing') {
+                            if (!timerInterval) {
+                                startLocalCountdown();
+                            }
+                        } else if (gameStatus === 'waiting' || gameStatus === 'stopped') {
+                            stopLocalCountdown();
+                        }
+
                         if (gameStatus === 'stopped') {
                             showPodiumModalUI();
                         }
@@ -883,7 +904,7 @@
         }
 
         window.closePodiumModal = function() {
-            document.getElementById('podium-modal').classList.add('hidden');
+            document.getElementById('podium-modal'].classList.add('hidden');
         }
 
         window.restartGame = async function() {
@@ -891,8 +912,11 @@
                 try {
                     hasSubmitted = false;
                     gameStatus = 'waiting';
+                    stopLocalCountdown();
                     await supabase.from('players').update({ score: 0, answers: {}, status: 'Joined' }).eq('room_id', roomId);
-                    await updateRoomInSupabase({ status: 'waiting' });
+                    await updateRoomInSupabase({ status: 'waiting', timer: 120 });
+                    timerSeconds = 120;
+                    document.getElementById('timer-display').textContent = 120;
                     rollRandomLetter();
                     fetchAndRenderPlayers();
                 } catch (e) {
