@@ -84,7 +84,7 @@
             <div class="flex flex-wrap items-center gap-3">
 
                 <!-- Role Switcher -->
-                <div id="role-switcher-box" class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
+                <div id="role-switcher-box" style="display:none" class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
                     <button id="btn-role-host" onclick="switchRole('host')" class="px-2.5 py-1 rounded transition-colors bg-black text-white dark:bg-white dark:text-black font-bold">
                         📺 Host / Class Screen
                     </button>
@@ -92,6 +92,11 @@
                         📱 Mobile Student View
                     </button>
                 </div>
+
+                <!-- Botón de revisión de respuestas (solo host) -->
+                <button id="btn-review" onclick="openReviewModal()" class="host-only flex items-center gap-2 border-2 border-black dark:border-white px-3 py-1.5 font-bold bg-amber-300 hover:bg-amber-400 text-black transition-all text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5">
+                    ✅ Revisar respuestas
+                </button>
 
                 <!-- Language Selector -->
                 <div id="lang-box" class="flex items-center bg-zinc-100 dark:bg-zinc-900 border-2 border-black dark:border-white rounded p-1 font-semibold text-xs">
@@ -295,9 +300,38 @@
                     </div>
                 </div>
 
-                <button onclick="closePodiumModal()" class="mt-5 px-6 py-2.5 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-xs border-2 border-black dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <button onclick="closePodiumModal(); openReviewModal();" class="host-only mt-5 px-6 py-2.5 bg-amber-300 hover:bg-amber-400 text-black font-black uppercase text-xs border-2 border-black dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                    ✅ Revisar respuestas
+                </button>
+
+                <button onclick="closePodiumModal()" class="mt-3 px-6 py-2.5 bg-black text-white dark:bg-white dark:text-black font-black uppercase text-xs border-2 border-black dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                     Close &amp; Play Next Round
                 </button>
+            </div>
+        </div>
+
+        <!-- ANSWER REVIEW MODAL (host) -->
+        <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white dark:bg-zinc-900 border-4 border-black dark:border-white w-full max-w-6xl p-5 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex flex-col relative max-h-[92vh]">
+                <button onclick="closeReviewModal()" class="absolute top-3 right-4 font-black text-2xl hover:text-red-500">&times;</button>
+
+                <div class="flex flex-wrap items-center gap-3 mb-3 pr-8">
+                    <h2 class="text-2xl font-black tracking-tight">✅ Revisión de respuestas</h2>
+                    <span class="font-mono font-black text-sm border-2 border-black dark:border-white px-2 py-0.5">Letra: <span id="review-letter">J</span></span>
+                </div>
+                <p class="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
+                    Cada respuesta correcta vale 10 puntos. Haz clic en una respuesta para aceptarla o rechazarla. Verde = aceptada, rojo = rechazada (pasa el cursor para ver el motivo).
+                </p>
+
+                <div class="overflow-auto border-2 border-black dark:border-white flex-grow">
+                    <table id="review-table" class="w-full text-xs border-collapse"></table>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
+                    <button onclick="closeReviewModal()" class="px-4 py-2 border-2 border-black dark:border-white bg-white dark:bg-zinc-900 font-black uppercase text-xs">Cerrar</button>
+                    <button onclick="saveReview(false)" class="px-4 py-2 border-2 border-black dark:border-white bg-emerald-500 hover:bg-emerald-600 text-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">💾 Guardar puntajes</button>
+                    <button onclick="saveReview(true)" class="px-4 py-2 border-2 border-black dark:border-white bg-amber-400 hover:bg-amber-500 text-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">🏆 Guardar y ver podio</button>
+                </div>
             </div>
         </div>
 
@@ -321,7 +355,7 @@
             <div class="flex items-center gap-3">
                 <span id="conn-status" class="font-mono font-bold text-zinc-500">● Conectando...</span>
                 <span>Multiplayer Classroom Portal</span>
-                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.3</span>
+                <span class="font-mono bg-black text-white dark:bg-white dark:text-black px-1.5 py-0.5">v5.5</span>
             </div>
         </footer>
     </div>
@@ -762,6 +796,8 @@
                     </div>
                     <div class="w-2/3">
                         <input type="text" id="cat-input-${cat.id}" placeholder="${gameStatus === 'playing' ? 'Con ' + activeLetter + '...' : 'Esperando inicio...'}"
+                            oninput="sanitizeInput(this)" onblur="markInput(this)" maxlength="30"
+                            autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
                             class="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-black dark:border-white px-3 py-1.5 text-sm font-mono uppercase font-bold focus:outline-none focus:bg-white disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-900"
                             ${shouldDisable ? 'disabled' : ''}>
                     </div>
@@ -773,11 +809,86 @@
             });
         }
 
-        function isValidWord(word) {
-            if (!word || word.length < 3) return false;
-            const hasVowel = /[AEIOUÁÉÍÓÚY]/.test(word);
-            const hasConsonant = /[BCDFGHJKLMNPQRSTVWXZ]/.test(word);
-            return hasVowel && hasConsonant;
+        /* ------------------------------------------------------------------ */
+        /*  VALIDACIÓN DE PALABRAS (solo inglés o francés)                     */
+        /* ------------------------------------------------------------------ */
+        const LETTERS = {
+            en: 'A-Z',
+            fr: 'A-ZÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ'
+        };
+        const VOWELS = 'AEIOUYÀÂÆÉÈÊËÎÏÔŒÙÛÜŸ';
+        const SEPARATORS = /[ '’-]/;
+
+        function wordRegex(lang) {
+            const L = LETTERS[lang] || LETTERS.en;
+            return new RegExp(`^[${L}]+(?:[ '’-][${L}]+)*$`);
+        }
+
+        // Devuelve { ok, empty, reason }
+        function validateWord(raw) {
+            const word = (raw || '').trim().toUpperCase();
+            if (!word) return { ok: true, empty: true };
+
+            if (!wordRegex(currentLang).test(word)) {
+                return { ok: false, reason: currentLang === 'en'
+                    ? 'solo letras del inglés (A-Z), sin números ni símbolos'
+                    : 'solo letras del francés, sin números ni símbolos' };
+            }
+
+            const letters = word.replace(/[ '’-]/g, '');
+            if (letters.length < 3) return { ok: false, reason: 'mínimo 3 letras' };
+
+            const vowelTest = new RegExp(`[${VOWELS}]`);
+            const consonantRun = new RegExp(`[^${VOWELS}]{6,}`);
+            const vowelRun = new RegExp(`[${VOWELS}]{5,}`);
+
+            for (const seg of word.split(SEPARATORS)) {
+                if (seg.length >= 2 && !vowelTest.test(seg)) return { ok: false, reason: 'no parece una palabra (sin vocales)' };
+                if (/(.)\1{2,}/.test(seg)) return { ok: false, reason: 'no parece una palabra (letra repetida 3 veces)' };
+                if (consonantRun.test(seg)) return { ok: false, reason: 'no parece una palabra (demasiadas consonantes seguidas)' };
+                if (vowelRun.test(seg)) return { ok: false, reason: 'no parece una palabra (demasiadas vocales seguidas)' };
+            }
+            return { ok: true };
+        }
+
+        // Letra base sin acento (É -> E, Ç -> C, Œ -> O, Æ -> A)
+        function baseLetter(ch) {
+            if (ch === 'Æ') return 'A';
+            if (ch === 'Œ') return 'O';
+            return ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        }
+
+        function startsWithActiveLetter(word) {
+            return baseLetter(word.charAt(0)) === activeLetter;
+        }
+
+        // Mientras escribe: pasa a mayúsculas y borra lo que no sea del idioma
+        window.sanitizeInput = function(el) {
+            const L = LETTERS[currentLang] || LETTERS.en;
+            let v = el.value.toUpperCase().replace(new RegExp(`[^${L} '’-]`, 'g'), '');
+            v = v.replace(/^[ '’-]+/, '').replace(/ {2,}/g, ' ');
+            if (v !== el.value) el.value = v;
+            // al corregir, se quita la marca roja
+            el.style.borderColor = '';
+            el.style.backgroundColor = '';
+            el.style.color = '';
+        }
+
+        // Al salir de la casilla: marca en rojo si no es válida
+        window.markInput = function(el) {
+            const r = validateWord(el.value);
+            if (!r.ok) {
+                el.style.borderColor = '#dc2626';
+                el.style.backgroundColor = '#fee2e2';
+                el.style.color = '#991b1b';
+                el.title = r.reason;
+            } else {
+                el.style.borderColor = '';
+                el.style.backgroundColor = '';
+                el.style.color = '';
+                el.title = '';
+            }
+            return r;
         }
 
         // Lee los inputs, calcula puntos y los guarda en la tabla players
@@ -792,9 +903,10 @@
                 const val = el ? el.value.trim().toUpperCase() : '';
                 answers[cat.id] = val;
 
-                if (val && val.startsWith(activeLetter)) {
-                    if (isValidWord(val)) scoreEarned += 10;
-                    else invalidWordsCount++;
+                if (val) {
+                    const r = validateWord(val);
+                    if (!r.ok) invalidWordsCount++;
+                    else if (startsWithActiveLetter(val)) scoreEarned += 10;
                 }
             });
 
@@ -817,6 +929,20 @@
 
             if (gameStatus !== 'playing') {
                 alert("El juego no está activo en este momento.");
+                return;
+            }
+
+            // Revisar todas las casillas: si alguna es inválida, NO se puede enviar ni dar STOP
+            const catList = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+            const problems = [];
+            catList.forEach(cat => {
+                const el = document.getElementById(`cat-input-${cat.id}`);
+                if (!el) return;
+                const r = markInput(el);
+                if (!r.ok) problems.push(`• ${cat.name}: ${r.reason}`);
+            });
+            if (problems.length > 0) {
+                alert("⛔ No puedes enviar todavía. Corrige estas casillas (marcadas en rojo) o déjalas vacías:\n\n" + problems.join("\n"));
                 return;
             }
 
@@ -890,7 +1016,7 @@
 
                     return `
                         <div class="flex items-center justify-between p-2 border border-black dark:border-white mb-1 bg-white dark:bg-zinc-900">
-                            <span class="font-bold text-xs truncate max-w-[130px]">${medal}${index + 1}. ${p.name}</span>
+                            <span class="font-bold text-xs truncate max-w-[130px]">${medal}${index + 1}. ${escapeHtml(p.name)}</span>
                             <span class="font-mono text-xs font-black bg-emerald-500 text-white px-2 py-0.5 rounded">${p.score || 0} pts</span>
                         </div>
                     `;
@@ -901,6 +1027,12 @@
             const modal = document.getElementById('podium-modal');
             if (modal && !modal.classList.contains('hidden')) {
                 showPodiumModalUI(false);
+            }
+
+            // Si la ventana de revisión está abierta, se refresca sin perder los cambios sin guardar
+            const reviewModal = document.getElementById('review-modal');
+            if (reviewModal && !reviewModal.classList.contains('hidden')) {
+                renderReviewTable();
             }
         }
 
@@ -960,7 +1092,7 @@
                 const medals = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
                 return `
                     <div class="flex flex-col items-center">
-                        <span class="font-black text-xs mb-1 truncate max-w-[90px]">${p.name}</span>
+                        <span class="font-black text-xs mb-1 truncate max-w-[90px]">${escapeHtml(p.name)}</span>
                         <span class="font-mono font-bold text-[10px] mb-1">${p.score || 0} pts</span>
                         <div class="${heights[i]} w-full border-2 border-black flex items-center justify-center font-black text-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] text-black">
                             ${medals[i]}
@@ -971,7 +1103,7 @@
 
             fullListContainer.innerHTML = sorted.slice(0, 6).map((p, index) => `
                 <div class="flex justify-between items-center py-1.5 px-2 border-b border-black/10">
-                    <span class="font-bold">#${index + 1} - ${p.name}</span>
+                    <span class="font-bold">#${index + 1} - ${escapeHtml(p.name)}</span>
                     <span class="font-black">${p.score || 0} pts</span>
                 </div>
             `).join('');
@@ -980,6 +1112,161 @@
             modal.classList.remove('hidden');
             if (withConfetti && wasHidden && window.confetti) {
                 confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            }
+        }
+
+        /* ------------------------------------------------------------------ */
+        /*  REVISIÓN DE RESPUESTAS (host)                                      */
+        /* ------------------------------------------------------------------ */
+        let reviewOverrides = {};   // cambios sin guardar: { [playerId]: { [catId]: true|false } }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Juicio automático de una respuesta
+        function autoJudge(word) {
+            const w = (word || '').trim().toUpperCase();
+            if (!w) return { ok: false, empty: true, reason: 'Sin respuesta' };
+            const r = validateWord(w);
+            if (!r.ok) return { ok: false, reason: 'Rechazada: ' + r.reason };
+            if (!startsWithActiveLetter(w)) return { ok: false, reason: 'Rechazada: no empieza con ' + activeLetter };
+            return { ok: true, reason: 'Aceptada' };
+        }
+
+        // Estado final de una casilla: cambio sin guardar > revisión guardada > automático
+        function cellState(p, catId) {
+            const ov = reviewOverrides[p.id] ? reviewOverrides[p.id][catId] : undefined;
+            if (ov !== undefined) return ov;
+            const saved = p.answers && p.answers.__review ? p.answers.__review[catId] : undefined;
+            if (saved !== undefined) return saved;
+            return autoJudge(p.answers ? p.answers[catId] : '').ok;
+        }
+
+        function renderReviewTable() {
+            const table = document.getElementById('review-table');
+            if (!table) return;
+            document.getElementById('review-letter').textContent = activeLetter;
+
+            const cats = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+            const players = [...connectedPlayersListCache];
+
+            if (players.length === 0) {
+                table.innerHTML = `<tbody><tr><td class="p-6 text-center text-zinc-500 italic">Todavía no hay jugadores en la sala.</td></tr></tbody>`;
+                return;
+            }
+
+            const headCells = cats.map(c =>
+                `<th class="p-2 border border-black/20 dark:border-white/20 bg-zinc-100 dark:bg-zinc-800 font-black uppercase text-left whitespace-nowrap">${escapeHtml(c.name)}</th>`
+            ).join('');
+
+            const rows = players.map(p => {
+                const answers = p.answers || {};
+                let total = 0;
+
+                const cells = cats.map(c => {
+                    const word = (answers[c.id] || '').toString().trim();
+                    if (!word) {
+                        return `<td class="p-2 border border-black/20 dark:border-white/20 text-zinc-400 text-center">—</td>`;
+                    }
+                    const ok = cellState(p, c.id);
+                    if (ok) total += 10;
+                    const reason = autoJudge(word).reason;
+                    const style = ok
+                        ? 'background:#d1fae5;color:#064e3b;border-color:#059669;'
+                        : 'background:#fee2e2;color:#7f1d1d;border-color:#dc2626;';
+                    return `
+                        <td class="p-1 border border-black/20 dark:border-white/20">
+                            <button onclick="toggleReviewCell('${p.id}','${c.id}')" title="${escapeHtml(reason)}"
+                                    class="w-full text-left px-2 py-1.5 border-2 font-mono font-bold uppercase"
+                                    style="${style}">
+                                ${ok ? '✓' : '✗'} ${escapeHtml(word)}
+                                ${!ok && reason ? `<span class="block font-sans font-normal normal-case text-[10px] opacity-80">${escapeHtml(reason.replace('Rechazada: ', ''))}</span>` : ''}
+                            </button>
+                        </td>`;
+                }).join('');
+
+                const sent = p.status === 'Submitted';
+                return `
+                    <tr>
+                        <td class="p-2 border border-black/20 dark:border-white/20 font-black whitespace-nowrap sticky left-0 bg-white dark:bg-zinc-900">
+                            ${escapeHtml(p.name)}
+                            ${sent ? '' : '<span class="block text-[10px] font-normal text-zinc-500">sin enviar</span>'}
+                        </td>
+                        ${cells}
+                        <td class="p-2 border border-black/20 dark:border-white/20 font-mono font-black text-center bg-emerald-100 text-emerald-900">${total}</td>
+                    </tr>`;
+            }).join('');
+
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="p-2 border border-black/20 dark:border-white/20 bg-zinc-100 dark:bg-zinc-800 font-black uppercase text-left sticky left-0">Jugador</th>
+                        ${headCells}
+                        <th class="p-2 border border-black/20 dark:border-white/20 bg-zinc-100 dark:bg-zinc-800 font-black uppercase">Pts</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>`;
+        }
+
+        window.openReviewModal = async function() {
+            reviewOverrides = {};
+            await fetchAndRenderPlayers();
+            renderReviewTable();
+            document.getElementById('review-modal').classList.remove('hidden');
+        }
+
+        window.closeReviewModal = function() {
+            document.getElementById('review-modal').classList.add('hidden');
+        }
+
+        window.toggleReviewCell = function(playerId, catId) {
+            const p = connectedPlayersListCache.find(x => x.id === playerId);
+            if (!p || !p.answers || !p.answers[catId]) return;
+            const current = cellState(p, catId);
+            if (!reviewOverrides[playerId]) reviewOverrides[playerId] = {};
+            reviewOverrides[playerId][catId] = !current;
+            renderReviewTable();
+        }
+
+        window.saveReview = async function(showPodium) {
+            const cats = VOCAB_DICTIONARY[currentLang].slice(0, activeCategoriesCount);
+            try {
+                for (const p of connectedPlayersListCache) {
+                    const review = {};
+                    let score = 0;
+                    cats.forEach(c => {
+                        const word = p.answers ? p.answers[c.id] : '';
+                        const ok = word ? cellState(p, c.id) : false;
+                        review[c.id] = ok;
+                        if (ok) score += 10;
+                    });
+                    const answers = Object.assign({}, p.answers || {}, { __review: review });
+                    const { error } = await supabase
+                        .from('players')
+                        .update({ score: score, answers: answers })
+                        .eq('id', p.id);
+                    if (error) {
+                        reportError('guardar la revisión', error);
+                        alert("No se pudieron guardar los puntajes. Revisa el pie de página para ver el error.");
+                        return;
+                    }
+                }
+
+                reviewOverrides = {};
+                await fetchAndRenderPlayers();
+                renderReviewTable();
+
+                if (showPodium) {
+                    closeReviewModal();
+                    showPodiumModalUI(true);
+                } else {
+                    alert("✅ Puntajes guardados.");
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 
